@@ -41,8 +41,17 @@ def strip_comments(text):
     while i < len(text):
         ch = text[i]
         if in_str:
+            # BigQuery escapes a quote with a BACKSLASH, not by doubling it.
+            # A scanner that only knows '' reports a false "unterminated
+            # string" on every \' and then miscounts every paren after it --
+            # which is exactly what this checker did once 05_preflight.sql
+            # was corrected from the ANSI '' form that BigQuery rejects.
+            if ch == "\\" and i + 1 < len(text):
+                out.append(text[i:i + 2])
+                i += 2
+                continue
             if ch == "'":
-                # '' is an escaped quote, stays inside the string
+                # '' also stays inside the string, for portability
                 if i + 1 < len(text) and text[i + 1] == "'":
                     out.append("''")
                     i += 2
@@ -78,6 +87,11 @@ i = 0
 while i < len(code):
     ch = code[i]
     if in_str:
+        # Same backslash rule as strip_comments above: \' does not close the
+        # string, and missing that makes every subsequent paren count wrong.
+        if ch == "\\" and i + 1 < len(code):
+            i += 2
+            continue
         if ch == "'":
             if i + 1 < len(code) and code[i + 1] == "'":
                 i += 2
