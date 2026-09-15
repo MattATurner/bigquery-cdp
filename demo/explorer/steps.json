@@ -1,0 +1,2039 @@
+{
+ "stages": [
+  {
+   "id": "00_setup",
+   "num": "00",
+   "statements": 10,
+   "steps": [
+    {
+     "op": "create schema",
+     "object": "${CDP_DS}",
+     "kind": "schema",
+     "rows": null
+    },
+    {
+     "op": "create schema",
+     "object": "${CDP_DS_TRUTH}",
+     "kind": "schema",
+     "rows": null
+    },
+    {
+     "op": "create function",
+     "object": "fold_diacritics",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create function",
+     "object": "norm_name",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create function",
+     "object": "strip_sentinel",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create function",
+     "object": "norm_email",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create function",
+     "object": "norm_postcode",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create function",
+     "object": "postcode_outward",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create function",
+     "object": "norm_phone",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create function",
+     "object": "norm_address",
+     "kind": "routine",
+     "rows": null
+    }
+   ],
+   "inputs": [],
+   "outputs": []
+  },
+  {
+   "id": "05_preflight",
+   "num": "05",
+   "statements": 13,
+   "steps": [
+    {
+     "op": "create temp table",
+     "object": "_pf_embed",
+     "kind": "temp",
+     "rows": null
+    },
+    {
+     "op": "assert",
+     "object": "\u2014",
+     "kind": "assert",
+     "rows": null
+    },
+    {
+     "op": "create temp table",
+     "object": "_pf_extract",
+     "kind": "temp",
+     "rows": null
+    },
+    {
+     "op": "assert",
+     "object": "\u2014",
+     "kind": "assert",
+     "rows": null
+    },
+    {
+     "op": "assert",
+     "object": "\u2014",
+     "kind": "assert",
+     "rows": null
+    },
+    {
+     "op": "create temp table",
+     "object": "_pf_classify",
+     "kind": "temp",
+     "rows": null
+    },
+    {
+     "op": "assert",
+     "object": "\u2014",
+     "kind": "assert",
+     "rows": null
+    },
+    {
+     "op": "assert",
+     "object": "\u2014",
+     "kind": "assert",
+     "rows": null
+    },
+    {
+     "op": "create temp table",
+     "object": "_pf_adjudicate",
+     "kind": "temp",
+     "rows": null
+    },
+    {
+     "op": "assert",
+     "object": "\u2014",
+     "kind": "assert",
+     "rows": null
+    },
+    {
+     "op": "assert",
+     "object": "\u2014",
+     "kind": "assert",
+     "rows": null
+    },
+    {
+     "op": "create table",
+     "object": "preflight_result",
+     "kind": "table",
+     "rows": 1
+    },
+    {
+     "op": "create view",
+     "object": "v_preflight",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [],
+   "outputs": [
+    {
+     "object": "preflight_result",
+     "rows": 1,
+     "bytes": 136,
+     "modified": "2026-09-15 09:55:01.151+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_preflight",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:01.874+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "10_land_sources",
+   "num": "10",
+   "statements": 12,
+   "steps": [
+    {
+     "op": "load data",
+     "object": "src_crm_customers",
+     "kind": "table",
+     "rows": 4155
+    },
+    {
+     "op": "load data",
+     "object": "src_ecom_accounts",
+     "kind": "table",
+     "rows": 3752
+    },
+    {
+     "op": "load data",
+     "object": "src_loyalty_members",
+     "kind": "table",
+     "rows": 3248
+    },
+    {
+     "op": "load data",
+     "object": "src_consent_events",
+     "kind": "table",
+     "rows": 13045
+    },
+    {
+     "op": "create external table",
+     "object": "ext_pos_transactions",
+     "kind": "table",
+     "rows": 0
+    },
+    {
+     "op": "create external table",
+     "object": "ext_support_tickets",
+     "kind": "table",
+     "rows": 0
+    },
+    {
+     "op": "create external table",
+     "object": "ext_third_party_enrich",
+     "kind": "table",
+     "rows": 0
+    },
+    {
+     "op": "create external table",
+     "object": "obj_call_transcripts",
+     "kind": "table",
+     "rows": 0
+    },
+    {
+     "op": "create external table",
+     "object": "ext_call_manifest",
+     "kind": "table",
+     "rows": 0
+    },
+    {
+     "op": "load data",
+     "object": "person_truth",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "load data",
+     "object": "case_catalogue",
+     "kind": "table",
+     "rows": 17
+    },
+    {
+     "op": "create table",
+     "object": "ref_source_trust",
+     "kind": "table",
+     "rows": 7
+    }
+   ],
+   "inputs": [],
+   "outputs": [
+    {
+     "object": "case_catalogue",
+     "rows": 17,
+     "bytes": 5015,
+     "modified": "2026-09-15 09:55:32.088+00",
+     "dataset": "cdp_truth"
+    },
+    {
+     "object": "ext_call_manifest",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:28.271+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ext_pos_transactions",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:25.341+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ext_support_tickets",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:26.176+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ext_third_party_enrich",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:26.955+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "obj_call_transcripts",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:27.713+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_truth",
+     "rows": 20000,
+     "bytes": 2147110,
+     "modified": "2026-09-15 09:55:30.387+00",
+     "dataset": "cdp_truth"
+    },
+    {
+     "object": "ref_source_trust",
+     "rows": 7,
+     "bytes": 476,
+     "modified": "2026-09-15 09:55:33.650+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "src_consent_events",
+     "rows": 13045,
+     "bytes": 794700,
+     "modified": "2026-09-15 09:55:24.614+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "src_crm_customers",
+     "rows": 4155,
+     "bytes": 593271,
+     "modified": "2026-09-15 09:55:18.637+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "src_ecom_accounts",
+     "rows": 3752,
+     "bytes": 330379,
+     "modified": "2026-09-15 09:55:20.353+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "src_loyalty_members",
+     "rows": 3248,
+     "bytes": 367269,
+     "modified": "2026-09-15 09:55:22.217+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "20_normalise",
+   "num": "20",
+   "statements": 5,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "stg_call_entities",
+     "kind": "table",
+     "rows": 442
+    },
+    {
+     "op": "create table",
+     "object": "stg_support_entities",
+     "kind": "table",
+     "rows": 968
+    },
+    {
+     "op": "create table",
+     "object": "party_records",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "create view",
+     "object": "v_source_profile",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_extraction_audit",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "ext_call_manifest",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:28.271+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ext_pos_transactions",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:25.341+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ext_support_tickets",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:26.176+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ext_third_party_enrich",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:26.955+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "obj_call_transcripts",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:27.713+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ref_source_trust",
+     "rows": 7,
+     "bytes": 476,
+     "modified": "2026-09-15 09:55:33.650+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "src_crm_customers",
+     "rows": 4155,
+     "bytes": 593271,
+     "modified": "2026-09-15 09:55:18.637+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "src_ecom_accounts",
+     "rows": 3752,
+     "bytes": 330379,
+     "modified": "2026-09-15 09:55:20.353+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "src_loyalty_members",
+     "rows": 3248,
+     "bytes": 367269,
+     "modified": "2026-09-15 09:55:22.217+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "party_records",
+     "rows": 20000,
+     "bytes": 7050270,
+     "modified": "2026-09-15 10:01:14.980+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "stg_call_entities",
+     "rows": 442,
+     "bytes": 95985,
+     "modified": "2026-09-15 09:58:12.738+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "stg_support_entities",
+     "rows": 968,
+     "bytes": 450060,
+     "modified": "2026-09-15 10:01:08.431+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_extraction_audit",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 10:01:16.472+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_source_profile",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 10:01:15.647+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "30_embed",
+   "num": "30",
+   "statements": 3,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "party_search",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "insert into",
+     "object": "party_search",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "create view",
+     "object": "v_embedding_health",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "party_records",
+     "rows": 20000,
+     "bytes": 7050270,
+     "modified": "2026-09-15 10:01:14.980+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "party_search",
+     "rows": 20000,
+     "bytes": 496278562,
+     "modified": "2026-09-15 10:14:56.234+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_embedding_health",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 10:12:34.973+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "35_embed_finalise",
+   "num": "35",
+   "statements": 6,
+   "steps": [
+    {
+     "op": "create vector index",
+     "object": "idx_party_hybrid",
+     "kind": "index",
+     "rows": null
+    },
+    {
+     "op": "create table",
+     "object": "party_vectors",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "create vector index",
+     "object": "idx_party_vectors",
+     "kind": "index",
+     "rows": null
+    },
+    {
+     "op": "create search index",
+     "object": "idx_party_text",
+     "kind": "index",
+     "rows": null
+    },
+    {
+     "op": "create table function",
+     "object": "tf_lookup_hybrid",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create table function",
+     "object": "tf_lookup_vector",
+     "kind": "routine",
+     "rows": null
+    }
+   ],
+   "inputs": [
+    {
+     "object": "party_search",
+     "rows": 20000,
+     "bytes": 496278562,
+     "modified": "2026-09-15 10:14:56.234+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "party_vectors",
+     "rows": 20000,
+     "bytes": 494670703,
+     "modified": "2026-09-15 10:15:16.648+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "40_block",
+   "num": "40",
+   "statements": 4,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "block_stats",
+     "kind": "table",
+     "rows": 11124
+    },
+    {
+     "op": "create table",
+     "object": "candidate_pairs_blocked",
+     "kind": "table",
+     "rows": 10529763
+    },
+    {
+     "op": "create view",
+     "object": "v_blocking_funnel",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_blocking_by_key",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "party_search",
+     "rows": 20000,
+     "bytes": 496278562,
+     "modified": "2026-09-15 10:14:56.234+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "block_stats",
+     "rows": 11124,
+     "bytes": 433920,
+     "modified": "2026-09-15 10:15:47.495+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "candidate_pairs_blocked",
+     "rows": 10529763,
+     "bytes": 583100325,
+     "modified": "2026-09-15 10:16:32.339+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_blocking_by_key",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 10:16:34.505+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_blocking_funnel",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 10:16:33.894+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "50_candidates",
+   "num": "50",
+   "statements": 6,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "candidate_pairs_semantic",
+     "kind": "table",
+     "rows": 328476
+    },
+    {
+     "op": "create table",
+     "object": "candidate_pairs_fused",
+     "kind": "table",
+     "rows": 10773841
+    },
+    {
+     "op": "create table",
+     "object": "pair_features",
+     "kind": "table",
+     "rows": 10773841
+    },
+    {
+     "op": "create table",
+     "object": "pair_tiers",
+     "kind": "table",
+     "rows": 10773841
+    },
+    {
+     "op": "create view",
+     "object": "v_candidate_funnel",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_retrieval_legs",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "candidate_pairs_blocked",
+     "rows": 10529763,
+     "bytes": 583100325,
+     "modified": "2026-09-15 10:16:32.339+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_search",
+     "rows": 20000,
+     "bytes": 496278562,
+     "modified": "2026-09-15 10:14:56.234+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_vectors",
+     "rows": 20000,
+     "bytes": 494670703,
+     "modified": "2026-09-15 10:15:16.648+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "candidate_pairs_fused",
+     "rows": 10773841,
+     "bytes": 937991438,
+     "modified": "2026-09-15 10:17:41.557+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "candidate_pairs_semantic",
+     "rows": 328476,
+     "bytes": 14906194,
+     "modified": "2026-09-15 10:17:34.709+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "pair_features",
+     "rows": 10773841,
+     "bytes": 5169416348,
+     "modified": "2026-09-15 10:17:51.072+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "pair_tiers",
+     "rows": 10773841,
+     "bytes": 5766833672,
+     "modified": "2026-09-15 10:17:56.439+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_candidate_funnel",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 10:17:57.127+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_retrieval_legs",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 10:17:57.918+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "60_adjudicate",
+   "num": "60",
+   "statements": 7,
+   "steps": [
+    {
+     "op": "create table if absent",
+     "object": "adjudications",
+     "kind": "table",
+     "rows": 456300
+    },
+    {
+     "op": "create table",
+     "object": "stg_adjudications_new",
+     "kind": "table",
+     "rows": 83176
+    },
+    {
+     "op": "insert into",
+     "object": "adjudications",
+     "kind": "table",
+     "rows": 456300
+    },
+    {
+     "op": "create view",
+     "object": "v_adjudications_current",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create table",
+     "object": "match_decisions",
+     "kind": "table",
+     "rows": 85881
+    },
+    {
+     "op": "create view",
+     "object": "v_adjudication_summary",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_injection_guard",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "pair_tiers",
+     "rows": 10773841,
+     "bytes": 5766833672,
+     "modified": "2026-09-15 10:17:56.439+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_records",
+     "rows": 20000,
+     "bytes": 7050270,
+     "modified": "2026-09-15 10:01:14.980+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "adjudications",
+     "rows": 456300,
+     "bytes": 183196779,
+     "modified": "2026-09-15 11:10:01.463+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "match_decisions",
+     "rows": 85881,
+     "bytes": 26482887,
+     "modified": "2026-09-15 11:10:08.176+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "stg_adjudications_new",
+     "rows": 83176,
+     "bytes": 29254400,
+     "modified": "2026-09-15 11:09:58.075+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_adjudication_summary",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:10:09.251+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_adjudications_current",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:10:02.345+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_injection_guard",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:10:10.195+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "70_graph",
+   "num": "70",
+   "statements": 31,
+   "steps": [
+    {
+     "op": "create procedure",
+     "object": "sp_connected_components",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create table",
+     "object": "%s",
+     "kind": "table",
+     "rows": null
+    },
+    {
+     "op": "create table",
+     "object": "%s_next",
+     "kind": "table",
+     "rows": null
+    },
+    {
+     "op": "create table",
+     "object": "%s",
+     "kind": "table",
+     "rows": null
+    },
+    {
+     "op": "create table",
+     "object": "graph_nodes",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "create table",
+     "object": "graph_edges_all",
+     "kind": "table",
+     "rows": 14044
+    },
+    {
+     "op": "call procedure",
+     "object": "sp_connected_components",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create table",
+     "object": "component_conflicts",
+     "kind": "table",
+     "rows": 12
+    },
+    {
+     "op": "create table",
+     "object": "graph_edges_pruned",
+     "kind": "table",
+     "rows": 13974
+    },
+    {
+     "op": "call procedure",
+     "object": "sp_connected_components",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create table if absent",
+     "object": "person_crosswalk",
+     "kind": "table",
+     "rows": 36079
+    },
+    {
+     "op": "create table",
+     "object": "person_assignment",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "merge into",
+     "object": "person_crosswalk",
+     "kind": "table",
+     "rows": 36079
+    },
+    {
+     "op": "create table",
+     "object": "resolution_edges",
+     "kind": "table",
+     "rows": 85881
+    },
+    {
+     "op": "create table",
+     "object": "node_person",
+     "kind": "table",
+     "rows": 12878
+    },
+    {
+     "op": "create table",
+     "object": "node_source_record",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "create table",
+     "object": "node_address",
+     "kind": "table",
+     "rows": 8598
+    },
+    {
+     "op": "create table",
+     "object": "node_email",
+     "kind": "table",
+     "rows": 7739
+    },
+    {
+     "op": "create table",
+     "object": "node_phone",
+     "kind": "table",
+     "rows": 6669
+    },
+    {
+     "op": "create table",
+     "object": "node_account",
+     "kind": "table",
+     "rows": 4309
+    },
+    {
+     "op": "create table",
+     "object": "node_household",
+     "kind": "table",
+     "rows": 7641
+    },
+    {
+     "op": "create table",
+     "object": "edge_resolves_to",
+     "kind": "table",
+     "rows": 20000
+    },
+    {
+     "op": "create table",
+     "object": "edge_lives_at",
+     "kind": "table",
+     "rows": 9088
+    },
+    {
+     "op": "create table",
+     "object": "edge_member_of",
+     "kind": "table",
+     "rows": 6435
+    },
+    {
+     "op": "create table",
+     "object": "edge_has_email",
+     "kind": "table",
+     "rows": 7875
+    },
+    {
+     "op": "create table",
+     "object": "edge_has_phone",
+     "kind": "table",
+     "rows": 6710
+    },
+    {
+     "op": "create table",
+     "object": "edge_holds_account",
+     "kind": "table",
+     "rows": 4327
+    },
+    {
+     "op": "create table",
+     "object": "edge_suspected_link",
+     "kind": "table",
+     "rows": 2874
+    },
+    {
+     "op": "create table",
+     "object": "edge_related_to",
+     "kind": "table",
+     "rows": 1
+    },
+    {
+     "op": "create view",
+     "object": "v_graph_summary",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_cluster_sizes",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "cc_final",
+     "rows": 20000,
+     "bytes": 568389,
+     "modified": "2026-09-15 11:12:30.954+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "cc_pass1",
+     "rows": 20000,
+     "bytes": 568422,
+     "modified": "2026-09-15 11:11:53.543+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "match_decisions",
+     "rows": 85881,
+     "bytes": 26482887,
+     "modified": "2026-09-15 11:10:08.176+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "pair_tiers",
+     "rows": 10773841,
+     "bytes": 5766833672,
+     "modified": "2026-09-15 10:17:56.439+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_records",
+     "rows": 20000,
+     "bytes": 7050270,
+     "modified": "2026-09-15 10:01:14.980+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_search",
+     "rows": 20000,
+     "bytes": 496278562,
+     "modified": "2026-09-15 10:14:56.234+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "stg_call_entities",
+     "rows": 442,
+     "bytes": 95985,
+     "modified": "2026-09-15 09:58:12.738+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "component_conflicts",
+     "rows": 12,
+     "bytes": 680,
+     "modified": "2026-09-15 11:11:55.590+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_has_email",
+     "rows": 7875,
+     "bytes": 554571,
+     "modified": "2026-09-15 11:13:00.426+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_has_phone",
+     "rows": 6710,
+     "bytes": 403485,
+     "modified": "2026-09-15 11:13:02.392+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_holds_account",
+     "rows": 4327,
+     "bytes": 185809,
+     "modified": "2026-09-15 11:13:04.144+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_lives_at",
+     "rows": 9088,
+     "bytes": 1012856,
+     "modified": "2026-09-15 11:12:56.504+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_member_of",
+     "rows": 6435,
+     "bytes": 276705,
+     "modified": "2026-09-15 11:12:58.660+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_related_to",
+     "rows": 1,
+     "bytes": 85,
+     "modified": "2026-09-15 11:13:08.060+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_resolves_to",
+     "rows": 20000,
+     "bytes": 1010778,
+     "modified": "2026-09-15 11:12:54.646+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_suspected_link",
+     "rows": 2874,
+     "bytes": 509735,
+     "modified": "2026-09-15 11:13:06.100+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "graph_edges_all",
+     "rows": 14044,
+     "bytes": 399518,
+     "modified": "2026-09-15 11:11:13.481+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "graph_edges_pruned",
+     "rows": 13974,
+     "bytes": 397510,
+     "modified": "2026-09-15 11:11:59.269+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "graph_nodes",
+     "rows": 20000,
+     "bytes": 284194,
+     "modified": "2026-09-15 11:11:11.612+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_account",
+     "rows": 4309,
+     "bytes": 146030,
+     "modified": "2026-09-15 11:12:50.734+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_address",
+     "rows": 8598,
+     "bytes": 1053885,
+     "modified": "2026-09-15 11:12:45.941+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_email",
+     "rows": 7739,
+     "bytes": 553005,
+     "modified": "2026-09-15 11:12:47.709+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_household",
+     "rows": 7641,
+     "bytes": 1074769,
+     "modified": "2026-09-15 11:12:52.359+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_person",
+     "rows": 12878,
+     "bytes": 922266,
+     "modified": "2026-09-15 11:12:42.376+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_phone",
+     "rows": 6669,
+     "bytes": 248523,
+     "modified": "2026-09-15 11:12:49.196+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_source_record",
+     "rows": 20000,
+     "bytes": 1637059,
+     "modified": "2026-09-15 11:12:44.224+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_assignment",
+     "rows": 20000,
+     "bytes": 1028389,
+     "modified": "2026-09-15 11:12:33.765+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_crosswalk",
+     "rows": 36079,
+     "bytes": 1883872,
+     "modified": "2026-09-15 11:12:35.934+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "resolution_edges",
+     "rows": 85881,
+     "bytes": 30261651,
+     "modified": "2026-09-15 11:12:39.831+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_cluster_sizes",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:13:09.433+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_graph_summary",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:13:08.693+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "80_survivorship",
+   "num": "80",
+   "statements": 5,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "field_assertions",
+     "kind": "table",
+     "rows": 120918
+    },
+    {
+     "op": "create table",
+     "object": "field_survivorship",
+     "kind": "table",
+     "rows": 83107
+    },
+    {
+     "op": "create table",
+     "object": "golden_person",
+     "kind": "table",
+     "rows": 12878
+    },
+    {
+     "op": "create view",
+     "object": "v_survivorship_by_source",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create table function",
+     "object": "tf_explain_person",
+     "kind": "routine",
+     "rows": null
+    }
+   ],
+   "inputs": [
+    {
+     "object": "party_records",
+     "rows": 20000,
+     "bytes": 7050270,
+     "modified": "2026-09-15 10:01:14.980+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_assignment",
+     "rows": 20000,
+     "bytes": 1028389,
+     "modified": "2026-09-15 11:12:33.765+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "field_assertions",
+     "rows": 120918,
+     "bytes": 11320557,
+     "modified": "2026-09-15 11:13:42.750+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "field_survivorship",
+     "rows": 83107,
+     "bytes": 15630408,
+     "modified": "2026-09-15 11:13:45.979+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "golden_person",
+     "rows": 12878,
+     "bytes": 1760385,
+     "modified": "2026-09-15 11:13:48.081+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_survivorship_by_source",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:13:48.620+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "85_consent",
+   "num": "85",
+   "statements": 6,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "consent_record_state",
+     "kind": "table",
+     "rows": 11985
+    },
+    {
+     "op": "create table",
+     "object": "person_suppression",
+     "kind": "table",
+     "rows": 71
+    },
+    {
+     "op": "create table",
+     "object": "person_consent",
+     "kind": "table",
+     "rows": 11152
+    },
+    {
+     "op": "create view",
+     "object": "v_consent_impact",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_consent_conflicts",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_contactable",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "golden_person",
+     "rows": 12878,
+     "bytes": 1760385,
+     "modified": "2026-09-15 11:13:48.081+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_assignment",
+     "rows": 20000,
+     "bytes": 1028389,
+     "modified": "2026-09-15 11:12:33.765+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "src_consent_events",
+     "rows": 13045,
+     "bytes": 794700,
+     "modified": "2026-09-15 09:55:24.614+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "stg_support_entities",
+     "rows": 968,
+     "bytes": 450060,
+     "modified": "2026-09-15 10:01:08.431+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "consent_record_state",
+     "rows": 11985,
+     "bytes": 730319,
+     "modified": "2026-09-15 11:13:57.811+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_consent",
+     "rows": 11152,
+     "bytes": 2621827,
+     "modified": "2026-09-15 11:14:02.375+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_suppression",
+     "rows": 71,
+     "bytes": 3176,
+     "modified": "2026-09-15 11:13:59.724+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_consent_conflicts",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:14:03.797+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_consent_impact",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:14:03.172+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_contactable",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:14:04.487+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "90_downstream",
+   "num": "90",
+   "statements": 10,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "person_rfm",
+     "kind": "table",
+     "rows": 4951
+    },
+    {
+     "op": "create table",
+     "object": "person_segments",
+     "kind": "table",
+     "rows": 4951
+    },
+    {
+     "op": "create table",
+     "object": "segment_labels",
+     "kind": "table",
+     "rows": 5
+    },
+    {
+     "op": "create table",
+     "object": "household_profile",
+     "kind": "table",
+     "rows": 6053
+    },
+    {
+     "op": "create view",
+     "object": "v_household_waste",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_shared_identifiers",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create table",
+     "object": "person_context",
+     "kind": "table",
+     "rows": 12878
+    },
+    {
+     "op": "create table function",
+     "object": "tf_ask_about_person",
+     "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create view",
+     "object": "v_audience_lapsed_high_value",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_activation_before_after",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "edge_has_email",
+     "rows": 7875,
+     "bytes": 554571,
+     "modified": "2026-09-15 11:13:00.426+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_has_phone",
+     "rows": 6710,
+     "bytes": 403485,
+     "modified": "2026-09-15 11:13:02.392+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_holds_account",
+     "rows": 4327,
+     "bytes": 185809,
+     "modified": "2026-09-15 11:13:04.144+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "edge_member_of",
+     "rows": 6435,
+     "bytes": 276705,
+     "modified": "2026-09-15 11:12:58.660+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ext_pos_transactions",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:25.341+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "field_survivorship",
+     "rows": 83107,
+     "bytes": 15630408,
+     "modified": "2026-09-15 11:13:45.979+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "golden_person",
+     "rows": 12878,
+     "bytes": 1760385,
+     "modified": "2026-09-15 11:13:48.081+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_household",
+     "rows": 7641,
+     "bytes": 1074769,
+     "modified": "2026-09-15 11:12:52.359+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_person",
+     "rows": 12878,
+     "bytes": 922266,
+     "modified": "2026-09-15 11:12:42.376+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "node_phone",
+     "rows": 6669,
+     "bytes": 248523,
+     "modified": "2026-09-15 11:12:49.196+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_records",
+     "rows": 20000,
+     "bytes": 7050270,
+     "modified": "2026-09-15 10:01:14.980+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_assignment",
+     "rows": 20000,
+     "bytes": 1028389,
+     "modified": "2026-09-15 11:12:33.765+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_consent",
+     "rows": 11152,
+     "bytes": 2621827,
+     "modified": "2026-09-15 11:14:02.375+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_contactable",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:14:04.487+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "household_profile",
+     "rows": 6053,
+     "bytes": 667416,
+     "modified": "2026-09-15 11:17:36.987+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_context",
+     "rows": 12878,
+     "bytes": 1849741,
+     "modified": "2026-09-15 11:17:40.761+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_rfm",
+     "rows": 4951,
+     "bytes": 528756,
+     "modified": "2026-09-15 11:14:13.376+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_segments",
+     "rows": 4951,
+     "bytes": 346570,
+     "modified": "2026-09-15 11:14:53.630+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "segment_labels",
+     "rows": 5,
+     "bytes": 471664,
+     "modified": "2026-09-15 11:17:31.770+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_activation_before_after",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:17:43.137+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_audience_lapsed_high_value",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:17:42.356+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_household_waste",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:17:37.534+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_shared_identifiers",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:17:38.104+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "95_scorecard",
+   "num": "95",
+   "statements": 5,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "eval_pairs",
+     "kind": "table",
+     "rows": 19594
+    },
+    {
+     "op": "create view",
+     "object": "v_scorecard",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_case_results",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_retrieval_recall",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_failures",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "candidate_pairs_fused",
+     "rows": 10773841,
+     "bytes": 937991438,
+     "modified": "2026-09-15 10:17:41.557+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "case_catalogue",
+     "rows": 17,
+     "bytes": 5015,
+     "modified": "2026-09-15 09:55:32.088+00",
+     "dataset": "cdp_truth"
+    },
+    {
+     "object": "match_decisions",
+     "rows": 85881,
+     "bytes": 26482887,
+     "modified": "2026-09-15 11:10:08.176+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "pair_tiers",
+     "rows": 10773841,
+     "bytes": 5766833672,
+     "modified": "2026-09-15 10:17:56.439+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_records",
+     "rows": 20000,
+     "bytes": 7050270,
+     "modified": "2026-09-15 10:01:14.980+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_search",
+     "rows": 20000,
+     "bytes": 496278562,
+     "modified": "2026-09-15 10:14:56.234+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_assignment",
+     "rows": 20000,
+     "bytes": 1028389,
+     "modified": "2026-09-15 11:12:33.765+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "person_truth",
+     "rows": 20000,
+     "bytes": 2147110,
+     "modified": "2026-09-15 09:55:30.387+00",
+     "dataset": "cdp_truth"
+    },
+    {
+     "object": "v_adjudications_current",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:10:02.345+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "eval_pairs",
+     "rows": 19594,
+     "bytes": 1213906,
+     "modified": "2026-09-15 11:18:12.386+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_case_results",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:18:14.615+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_failures",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:18:16.759+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_retrieval_recall",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:18:16.069+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_scorecard",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:18:13.973+00",
+     "dataset": "cdp"
+    }
+   ]
+  },
+  {
+   "id": "96_cost_model",
+   "num": "96",
+   "statements": 5,
+   "steps": [
+    {
+     "op": "create table",
+     "object": "ref_unit_prices",
+     "kind": "table",
+     "rows": 1
+    },
+    {
+     "op": "create table",
+     "object": "cost_components",
+     "kind": "table",
+     "rows": 5
+    },
+    {
+     "op": "create view",
+     "object": "v_cost_compute",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_cost_model",
+     "kind": "view",
+     "rows": 0
+    },
+    {
+     "op": "create view",
+     "object": "v_cost_sensitivity",
+     "kind": "view",
+     "rows": 0
+    }
+   ],
+   "inputs": [
+    {
+     "object": "adjudications",
+     "rows": 456300,
+     "bytes": 183196779,
+     "modified": "2026-09-15 11:10:01.463+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ext_support_tickets",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 09:55:26.176+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "golden_person",
+     "rows": 12878,
+     "bytes": 1760385,
+     "modified": "2026-09-15 11:13:48.081+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_records",
+     "rows": 20000,
+     "bytes": 7050270,
+     "modified": "2026-09-15 10:01:14.980+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "party_search",
+     "rows": 20000,
+     "bytes": 496278562,
+     "modified": "2026-09-15 10:14:56.234+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "preflight_result",
+     "rows": 1,
+     "bytes": 136,
+     "modified": "2026-09-15 09:55:01.151+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "stg_call_entities",
+     "rows": 442,
+     "bytes": 95985,
+     "modified": "2026-09-15 09:58:12.738+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "stg_support_entities",
+     "rows": 968,
+     "bytes": 450060,
+     "modified": "2026-09-15 10:01:08.431+00",
+     "dataset": "cdp"
+    }
+   ],
+   "outputs": [
+    {
+     "object": "cost_components",
+     "rows": 5,
+     "bytes": 342,
+     "modified": "2026-09-15 11:18:26.629+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "ref_unit_prices",
+     "rows": 1,
+     "bytes": 143,
+     "modified": "2026-09-15 11:18:24.611+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_cost_compute",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:18:27.697+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_cost_model",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:18:28.359+00",
+     "dataset": "cdp"
+    },
+    {
+     "object": "v_cost_sensitivity",
+     "rows": 0,
+     "bytes": 0,
+     "modified": "2026-09-15 11:18:29.091+00",
+     "dataset": "cdp"
+    }
+   ]
+  }
+ ],
+ "funnel": [
+  {
+   "label": "Source records landed",
+   "value": 20000,
+   "note": "every row from the eight sources, normalised"
+  },
+  {
+   "label": "Pairs considered",
+   "value": 10773841,
+   "note": "after blocking cut the full cross product"
+  },
+  {
+   "label": "Auto-matched on rules",
+   "value": 2705,
+   "note": "no LLM involved"
+  },
+  {
+   "label": "Sent to the adjudicator",
+   "value": 83176,
+   "note": "the only pairs that cost model spend"
+  },
+  {
+   "label": "Rejected before the LLM",
+   "value": 10687960,
+   "note": "scored or ruled out"
+  },
+  {
+   "label": "Adjudicated MATCH",
+   "value": 4917,
+   "note": "LLM agreed they are the same person"
+  },
+  {
+   "label": "Resolved people",
+   "value": 12878,
+   "note": "clusters published"
+  },
+  {
+   "label": "True people (ground truth)",
+   "value": 8000,
+   "note": "what the answer should have been"
+  }
+ ]
+}
