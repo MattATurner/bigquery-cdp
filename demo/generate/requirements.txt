@@ -1,0 +1,9 @@
+# Synthetic data generator for the composable-CDP / MDM BigQuery demo.
+#
+# Standard library only, plus pyarrow for the Parquet output.
+# No faker, no pandas, no network access at generation time.
+#
+# Pinned to a minor range so Parquet output stays byte-identical for a given
+# seed. Parquet embeds a "created_by" string carrying the writer version, so a
+# pyarrow upgrade will change the file bytes even though the data is identical.
+pyarrow>=18,<26

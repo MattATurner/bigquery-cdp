@@ -1,0 +1,18 @@
+# Local configuration — never commit
+demo/config.env
+
+# Generated data
+demo/data/
+demo/.state/
+
+# Rendered SQL
+demo/.rendered/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Notebook output
+.ipynb_checkpoints/
