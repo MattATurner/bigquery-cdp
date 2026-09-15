@@ -65,7 +65,7 @@ echo
 ask CDP_EMBEDDING_ENDPOINT  "Embedding endpoint"                 "gemini-embedding-001"
 ask CDP_EXTRACTION_MODEL    "Entity-extraction model (high volume, cheap)" "gemini-3.5-flash-lite"
 ask CDP_ADJUDICATOR_MODEL   "Adjudicator model (low volume, capable; pin it)" "gemini-3.5-flash"
-ask CDP_PROMPT_VERSION      "Prompt version tag"                 "adjudicator-v1"
+ask CDP_PROMPT_VERSION      "Prompt version tag"                 "adjudicator-v2"
 
 echo
 # ---------------------------------------------------------------------
