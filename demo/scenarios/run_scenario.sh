@@ -17,8 +17,12 @@ bold() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 die()  { printf '  \033[31m✗\033[0m %s\n' "$1"; exit 1; }
 
 [[ -f "${CONFIG}" ]] || die "No config.env. Run ./setup.sh first."
+# `set -a` matters: envsubst is a separate process and only sees EXPORTED
+# variables. Without it every ${CDP_*} token renders as an empty string.
+set -a
 # shellcheck disable=SC1090
 source "${CONFIG}"
+set +a
 
 SCENARIO="${1:-}"
 [[ -n "${SCENARIO}" ]] || die "Usage: run_scenario.sh {A|B|C|D|E}"

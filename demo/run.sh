@@ -34,8 +34,15 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -f "${CONFIG}" ]] || die "No config.env. Run ./setup.sh first."
+# `set -a` matters: envsubst is a separate process and only sees EXPORTED
+# variables. A plain `source` makes these shell variables only, so every
+# ${CDP_*} token renders as an empty string — and the failure is baffling,
+# because run.sh's own banner prints the values correctly while the SQL that
+# reaches BigQuery reads `CREATE SCHEMA \`.\`` with location ''.
+set -a
 # shellcheck disable=SC1090
 source "${CONFIG}"
+set +a
 [[ -n "${CDP_PROJECT:-}" ]] || die "CDP_PROJECT is empty. Re-run ./setup.sh."
 
 mkdir -p "${RENDER_DIR}" "${STATE_DIR}"
@@ -159,6 +166,61 @@ PY
 }
 
 # ---------------------------------------------------------------------
+# BigQuery requires a generated embedding column to be asynchronous, so
+# the vectors in party_search are still being written by a background job
+# when stage 30 returns.
+#
+# Stage 35 builds party_vectors with WHERE match_embedding.result IS NOT
+# NULL. Start it early and you get an EMPTY table and no error at all —
+# every later stage then succeeds with the wrong numbers. SQL has no
+# SLEEP, so the wait lives here.
+# ---------------------------------------------------------------------
+wait_for_embeddings() {
+  local deadline=$(( $(date +%s) + 1800 ))   # 30 minutes
+  local last=""
+
+  info "waiting for background embedding generation"
+
+  while :; do
+    local row
+    row="$(bq query \
+        --project_id="${CDP_PROJECT}" \
+        --location="${CDP_LOCATION}" \
+        --use_legacy_sql=false \
+        --format=csv \
+        --quiet \
+        "SELECT IFNULL(SUM(missing),0), IFNULL(SUM(embedded),0), IFNULL(SUM(errored),0)
+         FROM \`${CDP_PROJECT}.${CDP_DS}.v_embedding_health\`" 2>/dev/null | tail -1)" \
+      || die "Could not read v_embedding_health. Did stage 30 succeed?"
+
+    local missing embedded errored
+    IFS=, read -r missing embedded errored <<< "${row}"
+
+    # Partial failure is the dangerous case: quota pressure embeds most
+    # rows and drops the rest, and a silently unembedded record is a
+    # silently unmatched customer.
+    if [[ "${errored:-0}" -gt 0 ]]; then
+      die "${errored} row(s) carry an embedding error. Read v_embedding_health.sample_error — usually quota pressure."
+    fi
+
+    if [[ "${missing:-1}" -eq 0 && "${embedded:-0}" -gt 0 ]]; then
+      ok "all ${embedded} rows embedded"
+      return 0
+    fi
+
+    if [[ "$(date +%s)" -ge "${deadline}" ]]; then
+      die "Embeddings still incomplete after 30 minutes (${missing} missing). Check v_embedding_health."
+    fi
+
+    if [[ "${missing}" != "${last}" ]]; then
+      info "  ${embedded} embedded, ${missing} remaining"
+      last="${missing}"
+    fi
+    sleep 20
+  done
+}
+
+# ---------------------------------------------------------------------
 bold "Composable CDP demo"
 echo "  project   ${CDP_PROJECT}"
 echo "  location  ${CDP_LOCATION}"
@@ -231,6 +293,9 @@ for f in "${HERE}"/sql/[0-9]*.sql; do
   # Checked here rather than at the end: everything downstream succeeds on
   # a short load, it just succeeds with the wrong numbers.
   [[ "$(stage_num "${f}")" == "10" && "${DRY}" != "1" ]] && validate_landing
+  # Same reasoning as the row-count check above: stage 35 would otherwise
+  # succeed against a half-written embedding column and be quietly wrong.
+  [[ "$(stage_num "${f}")" == "30" && "${DRY}" != "1" ]] && wait_for_embeddings
 done
 
 # ---------------------------------------------------------------------

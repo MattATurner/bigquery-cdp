@@ -179,12 +179,7 @@ EVIDENCE
       connection_id => '${CDP_CONNECTION_PATH}',
       endpoint      => '${CDP_ADJUDICATOR_MODEL}',
       output_schema =>
-        'verdict STRING, '
-     || 'confidence FLOAT64, '
-     || 'rationale STRING, '
-     || 'decisive_evidence STRING, '
-     || 'contradiction STRING, '
-     || 'injection_detected BOOL'
+        'verdict STRING, confidence FLOAT64, rationale STRING, decisive_evidence STRING, contradiction STRING, injection_detected BOOL'
     ) AS g
   FROM outstanding AS o
   LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.party_records` AS ea ON ea.record_id = o.record_id_a

@@ -156,7 +156,7 @@ OPTIONS (
   max_staleness = INTERVAL 1 DAY,
   metadata_cache_mode = 'AUTOMATIC',
   description = 'Call transcripts in Cloud Storage, queried in place. Carries the '
-             || '"my wife''s account" signal that prevents a caller being merged with '
+             || '"my wife\'s account" signal that prevents a caller being merged with '
              || 'the account holder.'
 );
 

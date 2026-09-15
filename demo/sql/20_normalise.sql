@@ -63,19 +63,7 @@ Transcript follows.''',
       connection_id => '${CDP_CONNECTION_PATH}',
       endpoint      => '${CDP_EXTRACTION_MODEL}',
       output_schema =>
-        'caller_name STRING, '
-     || 'account_holder_name STRING, '
-     || 'caller_is_account_holder BOOL, '
-     || 'relationship_to_account STRING, '
-     || 'address STRING, '
-     || 'postcode STRING, '
-     || 'phone STRING, '
-     || 'email STRING, '
-     || 'account_number STRING, '
-     || 'dob STRING, '
-     || 'evidence STRING, '
-     || 'injection_attempt BOOL, '
-     || 'confidence FLOAT64'
+        'caller_name STRING, account_holder_name STRING, caller_is_account_holder BOOL, relationship_to_account STRING, address STRING, postcode STRING, phone STRING, email STRING, account_number STRING, dob STRING, evidence STRING, injection_attempt BOOL, confidence FLOAT64'
     ) AS g
   FROM `${CDP_PROJECT}.${CDP_DS}.obj_call_transcripts` AS o
   JOIN `${CDP_PROJECT}.${CDP_DS}.ext_call_manifest`    AS m
@@ -163,17 +151,7 @@ Ticket body:
       connection_id => '${CDP_CONNECTION_PATH}',
       endpoint      => '${CDP_EXTRACTION_MODEL}',
       output_schema =>
-        'person_name STRING, '
-     || 'address STRING, '
-     || 'postcode STRING, '
-     || 'phone STRING, '
-     || 'email STRING, '
-     || 'account_number STRING, '
-     || 'order_ref STRING, '
-     || 'dob STRING, '
-     || 'risk_evidence STRING, '
-     || 'injection_attempt BOOL, '
-     || 'confidence FLOAT64'
+        'person_name STRING, address STRING, postcode STRING, phone STRING, email STRING, account_number STRING, order_ref STRING, dob STRING, risk_evidence STRING, injection_attempt BOOL, confidence FLOAT64'
     ) AS g,
     -- Closed taxonomy. `output_mode` defaults to single-label, which is
     -- what we want: one governing risk state per ticket.
@@ -185,11 +163,17 @@ Ticket body:
         STRUCT('MINOR',           'The person is, or is stated to be, under 18'),
         STRUCT('VULNERABLE',      'Illness, disability, care arrangements, or a stated inability to manage the account'),
         STRUCT('BEREAVEMENT',     'A bereavement in the household affecting someone other than the customer'),
-        STRUCT('THIRD_PARTY',     'Somebody is acting on the customer''s behalf: power of attorney, executor, carer, relative')
+        STRUCT('THIRD_PARTY',     'Somebody is acting on the customer\'s behalf: power of attorney, executor, carer, relative')
       ],
+      -- No optimization_mode here: BigQuery rejects it outright when an
+      -- explicit endpoint is supplied ("optimization_mode=MINIMIZE_COST is
+      -- not supported with endpoint argument for ai.classify"). Given the
+      -- choice, the pinned endpoint wins -- risk_category feeds
+      -- person_context and v_failures, so a classification has to be
+      -- traceable to a known model. The extraction model is already the
+      -- cheap tier, so little is given up.
       connection_id     => '${CDP_CONNECTION_PATH}',
-      endpoint          => '${CDP_EXTRACTION_MODEL}',
-      optimization_mode => 'MINIMIZE_COST'
+      endpoint          => '${CDP_EXTRACTION_MODEL}'
     ) AS risk_category
   FROM `${CDP_PROJECT}.${CDP_DS}.ext_support_tickets` AS t
 )

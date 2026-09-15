@@ -44,16 +44,10 @@ SELECT
   ) AS e;
 
 ASSERT (SELECT e.status IS NULL OR e.status = '' FROM _pf_embed)
-  AS 'PREFLIGHT FAILED — embedding model rejected the call. '
-  || 'Check CDP_EMBEDDING_ENDPOINT (currently ${CDP_EMBEDDING_ENDPOINT}) is a valid '
-  || 'model available in ${CDP_LOCATION}, and that the connection service account '
-  || 'for ${CDP_CONNECTION_PATH} holds roles/aiplatform.user. '
-  || 'Run: bq show --connection --location=${CDP_LOCATION} ${CDP_CONNECTION}';
+  AS 'PREFLIGHT FAILED — embedding model rejected the call. Check CDP_EMBEDDING_ENDPOINT (currently ${CDP_EMBEDDING_ENDPOINT}) is a valid model available in ${CDP_LOCATION}, and that the connection service account for ${CDP_CONNECTION_PATH} holds roles/aiplatform.user. Run: bq show --connection --location=${CDP_LOCATION} ${CDP_CONNECTION}';
 
 ASSERT (SELECT ARRAY_LENGTH(e.result) > 0 FROM _pf_embed)
-  AS 'PREFLIGHT FAILED — embedding model returned an empty vector. '
-  || 'The call succeeded but produced nothing usable, which usually means the '
-  || 'endpoint name resolves to a non-embedding model.';
+  AS 'PREFLIGHT FAILED — embedding model returned an empty vector. The call succeeded but produced nothing usable, which usually means the endpoint name resolves to a non-embedding model.';
 
 -- The dimensionality is recorded in 05e, once every probe has run.
 
@@ -77,22 +71,17 @@ SELECT
   ) AS g;
 
 ASSERT (SELECT g.status IS NULL OR g.status = '' FROM _pf_extract)
-  AS 'PREFLIGHT FAILED — extraction model rejected the call. '
-  || 'Check CDP_EXTRACTION_MODEL (currently ${CDP_EXTRACTION_MODEL}). '
-  || 'Note the Gemini 2.5 family is scheduled for deprecation from 16 Oct 2026; '
-  || 'if you are pinned to a 2.5 model it may no longer be served in ${CDP_LOCATION}.';
+  AS 'PREFLIGHT FAILED — extraction model rejected the call. Check CDP_EXTRACTION_MODEL (currently ${CDP_EXTRACTION_MODEL}). Note the Gemini 2.5 family is scheduled for deprecation from 16 Oct 2026; if you are pinned to a 2.5 model it may no longer be served in ${CDP_LOCATION}.';
 
 ASSERT (SELECT g.forename IS NOT NULL FROM _pf_extract)
-  AS 'PREFLIGHT FAILED — extraction model returned no structured output. '
-  || 'The call succeeded but output_schema was not honoured. Stage 20 depends '
-  || 'on structured extraction, so this would fail there instead.';
+  AS 'PREFLIGHT FAILED — extraction model returned no structured output. The call succeeded but output_schema was not honoured. Stage 20 depends on structured extraction, so this would fail there instead.';
 
 -- ---------------------------------------------------------------------
 -- 05b2 · Classification model
 --
 -- AI.CLASSIFY is a genuinely different API surface from AI.GENERATE, not a
 -- variation on it: the input is positional, the taxonomy arrives as an
--- array of STRUCTs, optimization_mode is accepted, and the return is a
+-- array of STRUCTs, and the return is a
 -- bare STRING rather than a STRUCT — so there is no .status field to test
 -- and a rejected call surfaces as a query error rather than a status value.
 --
@@ -118,18 +107,14 @@ SELECT
       STRUCT('MINOR',           'The person is, or is stated to be, under 18'),
       STRUCT('VULNERABLE',      'Illness, disability, care arrangements, or a stated inability to manage the account'),
       STRUCT('BEREAVEMENT',     'A bereavement in the household affecting someone other than the customer'),
-      STRUCT('THIRD_PARTY',     'Somebody is acting on the customer''s behalf: power of attorney, executor, carer, relative')
+      STRUCT('THIRD_PARTY',     'Somebody is acting on the customer\'s behalf: power of attorney, executor, carer, relative')
     ],
     connection_id     => '${CDP_CONNECTION_PATH}',
-    endpoint          => '${CDP_EXTRACTION_MODEL}',
-    optimization_mode => 'MINIMIZE_COST'
+    endpoint          => '${CDP_EXTRACTION_MODEL}'
   ) AS risk_category;
 
 ASSERT (SELECT risk_category IS NOT NULL FROM _pf_classify)
-  AS 'PREFLIGHT FAILED — AI.CLASSIFY returned NULL. The call did not error, '
-  || 'so the connection and endpoint are reachable, but no label came back. '
-  || 'Stage 20 derives suppress_marketing from this value, so a null here '
-  || 'means no ticket would ever be suppressed.';
+  AS 'PREFLIGHT FAILED — AI.CLASSIFY returned NULL. The call did not error, so the connection and endpoint are reachable, but no label came back. Stage 20 derives suppress_marketing from this value, so a null here means no ticket would ever be suppressed.';
 
 -- The closed-taxonomy claim in 20b, tested rather than assumed.
 --
@@ -144,10 +129,7 @@ ASSERT (
     'NONE', 'DECEASED', 'MINOR', 'VULNERABLE', 'BEREAVEMENT', 'THIRD_PARTY'
   ) FROM _pf_classify
 )
-  AS 'PREFLIGHT FAILED — AI.CLASSIFY returned a label outside the supplied '
-  || 'taxonomy. The closed-taxonomy guarantee that stage 20 relies on does not '
-  || 'hold for this model. suppress_marketing would silently evaluate FALSE for '
-  || 'every off-taxonomy label, so this must be fixed rather than tolerated.';
+  AS 'PREFLIGHT FAILED — AI.CLASSIFY returned a label outside the supplied taxonomy. The closed-taxonomy guarantee that stage 20 relies on does not hold for this model. suppress_marketing would silently evaluate FALSE for every off-taxonomy label, so this must be fixed rather than tolerated.';
 
 -- ---------------------------------------------------------------------
 -- 05c · Adjudicator model
@@ -169,14 +151,10 @@ SELECT
   ) AS g;
 
 ASSERT (SELECT g.status IS NULL OR g.status = '' FROM _pf_adjudicate)
-  AS 'PREFLIGHT FAILED — adjudicator model rejected the call. '
-  || 'Check CDP_ADJUDICATOR_MODEL (currently ${CDP_ADJUDICATOR_MODEL}).';
+  AS 'PREFLIGHT FAILED — adjudicator model rejected the call. Check CDP_ADJUDICATOR_MODEL (currently ${CDP_ADJUDICATOR_MODEL}).';
 
 ASSERT (SELECT g.confidence IS NOT NULL FROM _pf_adjudicate)
-  AS 'PREFLIGHT FAILED — adjudicator returned no numeric confidence. '
-  || 'Stage 60 tiers on confidence against CDP_ACCEPT_CONFIDENCE and '
-  || 'CDP_STEWARD_CONFIDENCE, so a null here means every pair would fall through '
-  || 'to the steward queue.';
+  AS 'PREFLIGHT FAILED — adjudicator returned no numeric confidence. Stage 60 tiers on confidence against CDP_ACCEPT_CONFIDENCE and CDP_STEWARD_CONFIDENCE, so a null here means every pair would fall through to the steward queue.';
 
 -- ---------------------------------------------------------------------
 -- 05e · Record what was found

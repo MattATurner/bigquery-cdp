@@ -275,7 +275,43 @@ WITH interactions AS (
   FROM `${CDP_PROJECT}.${CDP_DS}.party_records` AS p
   JOIN `${CDP_PROJECT}.${CDP_DS}.person_assignment` AS a ON a.record_id = p.record_id
   WHERE p.evidence_note IS NOT NULL
+),
+
+-- These three were ARRAY(SELECT ... WHERE x.person_id = g.person_id) against
+-- other tables. BigQuery cannot de-correlate a subquery that references
+-- another table once it carries ORDER BY or LIMIT:
+--   "Correlated subqueries that reference other tables are not supported
+--    unless they can be de-correlated, such as by transforming them into an
+--    efficient JOIN."
+-- So each is pre-aggregated per person and LEFT JOINed below. A join miss
+-- yields a NULL array, which BigQuery stores as an empty array -- identical
+-- to what the empty subquery produced.
+consent_agg AS (
+  SELECT
+    person_id,
+    ARRAY_AGG(STRUCT(channel, purpose, effective_status)
+              ORDER BY channel, purpose) AS permissions
+  FROM `${CDP_PROJECT}.${CDP_DS}.person_consent`
+  GROUP BY person_id
+),
+
+interaction_agg AS (
+  SELECT
+    person_id,
+    ARRAY_AGG(line LIMIT 10) AS notable_interactions
+  FROM interactions
+  GROUP BY person_id
+),
+
+contested_agg AS (
+  SELECT
+    person_id,
+    ARRAY_AGG(field ORDER BY field) AS fields_with_conflicting_sources
+  FROM `${CDP_PROJECT}.${CDP_DS}.field_survivorship`
+  WHERE was_contested
+  GROUP BY person_id
 )
+
 SELECT
   g.person_id,
   g.full_name,
@@ -288,26 +324,17 @@ SELECT
   r.recency_days,
   r.frequency,
   r.monetary_aud,
-  ARRAY(
-    SELECT AS STRUCT channel, purpose, effective_status
-    FROM `${CDP_PROJECT}.${CDP_DS}.person_consent` AS c
-    WHERE c.person_id = g.person_id
-    ORDER BY channel, purpose
-  ) AS permissions,
-  ARRAY(
-    SELECT line FROM interactions AS i WHERE i.person_id = g.person_id LIMIT 10
-  ) AS notable_interactions,
+  ca.permissions,
+  ia.notable_interactions,
   -- Explicit uncertainty. This is the field that stops an agent asserting
   -- something it should have asked about.
-  ARRAY(
-    SELECT field
-    FROM `${CDP_PROJECT}.${CDP_DS}.field_survivorship` AS f
-    WHERE f.person_id = g.person_id AND f.was_contested
-    ORDER BY field
-  ) AS fields_with_conflicting_sources
+  co.fields_with_conflicting_sources
 FROM `${CDP_PROJECT}.${CDP_DS}.golden_person` AS g
 JOIN `${CDP_PROJECT}.${CDP_DS}.node_person`   AS n USING (person_id)
-LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.person_rfm` AS r USING (person_id);
+LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.person_rfm` AS r USING (person_id)
+LEFT JOIN consent_agg     AS ca ON ca.person_id = g.person_id
+LEFT JOIN interaction_agg AS ia ON ia.person_id = g.person_id
+LEFT JOIN contested_agg   AS co ON co.person_id = g.person_id;
 
 
 -- Ask a question about a customer. The prompt forbids invention and
@@ -373,8 +400,11 @@ SELECT
   r.recency_days,
   r.frequency,
   s.segment_id,
-  l.segment_name,
-  l.suggested_action
+  -- Nested, not flat: segment_labels stores the whole AI.GENERATE result in
+  -- column g, matching the convention in stages 20 and 60. The notebook
+  -- reads g.segment_name too, so the struct stays and the view reaches in.
+  l.g.segment_name,
+  l.g.suggested_action
 FROM `${CDP_PROJECT}.${CDP_DS}.v_contactable` AS c
 JOIN `${CDP_PROJECT}.${CDP_DS}.person_rfm` AS r USING (person_id)
 LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.person_segments` AS s USING (person_id)
