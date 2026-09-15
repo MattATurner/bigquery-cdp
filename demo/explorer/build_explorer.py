@@ -1,0 +1,1169 @@
+#!/usr/bin/env python3
+"""Build the stage explorer: one self-contained HTML page, no network at all.
+
+Reads the JSON that extract_results.py produced and writes a single file that
+renders identically from a USB stick with the wifi off. Everything -- the
+palette, the fonts, the data, the chart drawing -- lives inside that one file.
+
+    python3 demo/explorer/extract_results.py
+    python3 demo/explorer/build_explorer.py
+
+Defaults to demo/explorer/results.json in and demo/explorer/index.html out,
+both resolved next to this script. Override with --results / --out.
+
+The data is INLINED as a JavaScript object literal rather than fetched. The
+page is opened over file://, where fetch() is blocked by CORS, so inlining is
+not a nicety -- it is the only thing that works.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+DEFAULT_RESULTS = HERE / "results.json"
+DEFAULT_OUT = HERE / "index.html"
+SQL_DIR = HERE.parent / "sql"
+
+# --------------------------------------------------------------------------
+# Stylesheet. Every colour is a custom property so the dark toggle is a single
+# class flip on <body> and nothing needs a per-element override.
+# --------------------------------------------------------------------------
+CSS = r"""
+:root{
+  /* Google Cloud palette, as used by the deck at the repo root. */
+  --blue:#4285F4; --red:#EA4335; --yellow:#FBBC04; --green:#34A853;
+  --blue-d:#1A73E8; --green-d:#188038; --red-d:#C5221F; --yellow-d:#EA8600;
+
+  --ink:#202124; --grey:#5F6368; --grey2:#80868B; --line:#DADCE0;
+  --bg:#FFFFFF; --soft:#F8F9FA; --soft2:#F1F3F4;
+
+  --panel:var(--bg);
+  --rail-bg:var(--soft);
+  --chip-bg:var(--soft2);
+  --chip-ink:var(--grey);
+  --sel-bg:#E8F0FE;
+  --sel-ink:var(--blue-d);
+  --accent:var(--blue-d);
+  --shadow:0 1px 2px rgba(60,64,67,.30), 0 1px 3px 1px rgba(60,64,67,.15);
+  --shadow-soft:0 1px 2px rgba(60,64,67,.12);
+
+  --code-bg:var(--soft);
+  --kw:#1A73E8; --str:#188038; --com:#80868B; --num:#C5221F; --fn:#9334E6;
+
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+}
+body.dark{
+  --blue:#8AB4F8; --red:#F28B82; --yellow:#FDD663; --green:#81C995;
+  --blue-d:#8AB4F8; --green-d:#81C995; --red-d:#F28B82; --yellow-d:#FDD663;
+
+  --ink:#E8EAED; --grey:#9AA0A6; --grey2:#80868B; --line:#3C4043;
+  --bg:#17181A; --soft:#202124; --soft2:#282A2D;
+
+  --panel:#1E1F21;
+  --rail-bg:#202124;
+  --chip-bg:#2D2F31;
+  --chip-ink:#C4C7C5;
+  --sel-bg:#28344A;
+  --sel-ink:#AECBFA;
+  --accent:#8AB4F8;
+  --shadow:0 1px 2px rgba(0,0,0,.6), 0 1px 3px 1px rgba(0,0,0,.4);
+  --shadow-soft:0 1px 2px rgba(0,0,0,.4);
+
+  --code-bg:#202124;
+  --kw:#8AB4F8; --str:#81C995; --com:#80868B; --num:#F28B82; --fn:#D7AEFB;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:var(--sans); color:var(--ink); background:var(--bg);
+  font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  height:100vh; display:grid; grid-template-rows:auto auto minmax(0,1fr);
+  overflow:hidden;
+  transition:background-color .18s ease, color .18s ease;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+a{color:var(--accent)}
+
+/* ---------------- header ---------------- */
+header{
+  display:flex; align-items:center; gap:20px; padding:14px 28px;
+  border-bottom:1px solid var(--line); background:var(--panel);
+}
+.brand{display:flex;align-items:baseline;gap:12px;min-width:0}
+.brand h1{font-size:17px;font-weight:600;letter-spacing:-.2px;white-space:nowrap}
+.brand .sub{font-size:12.5px;color:var(--grey);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.hdr-spacer{flex:1}
+.chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.chip{
+  font-family:var(--mono); font-size:11.5px; color:var(--chip-ink);
+  background:var(--chip-bg); border-radius:100px; padding:3px 11px;
+  white-space:nowrap;
+}
+.tgl{
+  border:1px solid var(--line); border-radius:100px; padding:5px 14px;
+  font-size:12.5px; color:var(--grey); display:flex; align-items:center; gap:7px;
+  transition:background-color .15s ease, border-color .15s ease;
+}
+.tgl:hover{background:var(--soft2)}
+.tgl svg{width:14px;height:14px;display:block}
+
+/* ---------------- progress rail ---------------- */
+.rail{
+  display:flex; align-items:center; gap:0; padding:11px 28px;
+  background:var(--rail-bg); border-bottom:1px solid var(--line);
+  overflow-x:auto; scrollbar-width:thin;
+}
+.rail .rl{font-size:11px;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--grey2);margin-right:16px;white-space:nowrap;font-weight:600}
+.rstep{display:flex;align-items:center;flex:0 0 auto}
+.rdot{
+  width:30px;height:30px;border-radius:50%;border:1px solid var(--line);
+  background:var(--bg); color:var(--grey); font-family:var(--mono);
+  font-size:11px; display:flex; align-items:center; justify-content:center;
+  transition:background-color .15s ease,color .15s ease,border-color .15s ease;
+}
+.rdot:hover{border-color:var(--accent);color:var(--accent)}
+.rdot.on{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+body.dark .rdot.on{color:#17181A}
+.rdot.seen{border-color:var(--accent);color:var(--accent)}
+.rline{width:18px;height:1px;background:var(--line);flex:0 0 auto}
+
+/* ---------------- shell ---------------- */
+.shell{display:grid;grid-template-columns:288px minmax(0,1fr);min-height:0}
+nav{
+  border-right:1px solid var(--line); background:var(--panel);
+  overflow-y:auto; padding:14px 0 40px;
+}
+.navhead{font-size:11px;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--grey2);padding:8px 24px 6px;font-weight:600}
+.navitem{
+  display:grid; grid-template-columns:34px 1fr; gap:10px; align-items:baseline;
+  width:100%; text-align:left; padding:9px 24px 9px 18px;
+  border-left:3px solid transparent; color:var(--ink);
+  transition:background-color .15s ease;
+}
+.navitem:hover{background:var(--soft)}
+.navitem.on{background:var(--sel-bg);border-left-color:var(--accent)}
+.navitem.on .nt{color:var(--sel-ink);font-weight:600}
+.nn{font-family:var(--mono);font-size:11.5px;color:var(--grey2)}
+.navitem.on .nn{color:var(--sel-ink)}
+.nt{font-size:13.5px;line-height:1.35}
+.nmeta{grid-column:2;font-size:11.5px;color:var(--grey2);margin-top:1px}
+
+main{overflow-y:auto;padding:34px 44px 90px;min-width:0}
+.wrap{max-width:1080px}
+
+/* ---------------- type ---------------- */
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:1.1px;
+  text-transform:uppercase;color:var(--grey2);margin-bottom:10px}
+h2{font-size:30px;line-height:1.2;font-weight:500;letter-spacing:-.5px}
+h3{font-size:15px;font-weight:600;letter-spacing:-.1px}
+.lede{font-size:16.5px;line-height:1.6;color:var(--grey);max-width:74ch;margin-top:14px}
+.sec{margin-top:40px}
+.sec-h{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.sec-h h3{font-family:var(--mono);font-size:14px;font-weight:600}
+.count{font-size:12px;color:var(--grey2)}
+.note{font-size:13px;color:var(--grey);max-width:78ch}
+.muted{color:var(--grey2)}
+.hr{height:1px;background:var(--line);margin:34px 0}
+
+/* ---------------- cards / stats ---------------- */
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.card{
+  border:1px solid var(--line); border-radius:10px; padding:18px 20px;
+  background:var(--panel); box-shadow:var(--shadow-soft);
+}
+.card .k{font-size:12px;color:var(--grey);letter-spacing:.2px}
+.card .v{font-size:34px;line-height:1.15;font-weight:500;letter-spacing:-1px;margin-top:6px}
+.card .v.sm{font-size:26px}
+.card .f{font-size:12px;color:var(--grey2);margin-top:6px}
+.card.hero{border-top:3px solid var(--accent)}
+.card.hero.g{border-top-color:var(--green)}
+.card.hero.y{border-top-color:var(--yellow-d)}
+.card.hero.r{border-top-color:var(--red)}
+
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:0 30px;border-top:1px solid var(--line)}
+.kv .row{display:flex;justify-content:space-between;gap:16px;
+  padding:8px 0;border-bottom:1px solid var(--line)}
+.kv .row .k{font-size:12.5px;color:var(--grey)}
+.kv .row .v{font-family:var(--mono);font-size:12.5px;text-align:right;
+  word-break:break-word}
+
+/* ---------------- sql ---------------- */
+.sqlbox{border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:var(--panel)}
+.sqlbar{display:flex;align-items:center;gap:12px;width:100%;
+  padding:11px 16px;text-align:left;transition:background-color .15s ease}
+.sqlbar:hover{background:var(--soft)}
+.sqlbar .car{transition:transform .18s ease;color:var(--grey);
+  font-size:11px;font-family:var(--mono)}
+.sqlbox.open .sqlbar .car{transform:rotate(90deg)}
+.sqlbar .lbl{font-size:13px;font-weight:600}
+.sqlbar .meta{font-size:12px;color:var(--grey2);font-family:var(--mono)}
+.sqlbar .sp{flex:1}
+.copy{font-size:12px;color:var(--accent);padding:3px 10px;border-radius:6px}
+.copy:hover{background:var(--sel-bg)}
+.sqlbody{display:none;border-top:1px solid var(--line);background:var(--code-bg);
+  max-height:62vh;overflow:auto}
+.sqlbox.open .sqlbody{display:block}
+pre.code{font-family:var(--mono);font-size:12.5px;line-height:1.65;padding:16px 18px;
+  white-space:pre;tab-size:2}
+pre.code .ln{display:inline-block;width:3.2em;margin-right:1.2em;text-align:right;
+  color:var(--grey2);user-select:none}
+.k-kw{color:var(--kw);font-weight:600}
+.k-str{color:var(--str)}
+.k-com{color:var(--com);font-style:italic}
+.k-num{color:var(--num)}
+.k-fn{color:var(--fn)}
+
+/* ---------------- tables ---------------- */
+.tbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.filter{
+  font:inherit;font-size:13px;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:8px;padding:7px 12px;width:280px;
+}
+.filter:focus{outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 2px var(--sel-bg)}
+.shown{font-size:12px;color:var(--grey2)}
+.tscroll{border:1px solid var(--line);border-radius:10px;overflow:auto;
+  max-height:60vh;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+thead th{
+  position:sticky;top:0;z-index:1;background:var(--soft);
+  font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--grey);
+  text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);
+  white-space:nowrap;cursor:pointer;user-select:none;
+}
+thead th:hover{color:var(--accent)}
+thead th .ar{opacity:.45;margin-left:5px;font-size:10px}
+thead th.sorted{color:var(--accent)}
+thead th.sorted .ar{opacity:1}
+thead th.n{text-align:right}
+tbody td{padding:8px 14px;border-bottom:1px solid var(--line);
+  vertical-align:top;max-width:460px}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:nth-child(even){background:var(--soft)}
+tbody tr:hover{background:var(--sel-bg)}
+td.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+td.nil{color:var(--grey2)}
+.trunc{cursor:help;border-bottom:1px dotted var(--line)}
+.err{border:1px dashed var(--line);border-radius:10px;padding:16px 18px;
+  color:var(--grey2);font-size:13px;background:var(--soft)}
+.badge{font-family:var(--mono);font-size:11px;padding:2px 9px;border-radius:100px;
+  background:var(--chip-bg);color:var(--chip-ink)}
+
+/* ---------------- svg visuals ---------------- */
+.viz{border:1px solid var(--line);border-radius:10px;padding:18px 20px 14px;
+  background:var(--panel)}
+.viz svg{display:block;width:100%;height:auto;overflow:visible}
+.viz .cap{font-size:12px;color:var(--grey2);margin-top:10px}
+.s-lbl{font-family:var(--sans);font-size:11.5px;fill:var(--grey)}
+.s-val{font-family:var(--mono);font-size:11.5px;fill:var(--ink)}
+.s-track{fill:var(--soft2)}
+.b0{fill:var(--blue)} .b1{fill:var(--green)} .b2{fill:var(--yellow-d)}
+.b3{fill:var(--red)} .b4{fill:var(--blue-d)}
+.f-shape{fill:var(--blue)}
+.f-line{stroke:var(--line);stroke-width:1}
+
+.foot{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--grey2);display:flex;gap:18px;flex-wrap:wrap}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);
+  border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--grey)}
+
+@media (max-width:980px){
+  .shell{grid-template-columns:1fr}
+  nav{display:none}
+  main{padding:24px 20px 70px}
+}
+"""
+
+# --------------------------------------------------------------------------
+# Page script. No libraries: the tables, the highlighter and the SVG are all
+# built by hand here.
+# --------------------------------------------------------------------------
+JS = r"""
+'use strict';
+
+/* ---------- tiny DOM helpers ---------- */
+function el(tag, cls, text){
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined && text !== null) n.textContent = text;
+  return n;
+}
+/* The SVG namespace is discovered from a parsed <svg> element rather than
+   written out as a literal URI, so no URL of any kind appears in this file. */
+var SVGNS = (function(){
+  var probe = document.createElement('div');
+  probe.innerHTML = '<svg></svg>';
+  return probe.firstChild.namespaceURI;
+})();
+function svgEl(tag, attrs){
+  var n = document.createElementNS(SVGNS, tag);
+  for (var k in attrs) if (attrs[k] !== undefined && attrs[k] !== null)
+    n.setAttribute(k, String(attrs[k]));
+  return n;
+}
+function clear(n){ while (n.firstChild) n.removeChild(n.firstChild); }
+
+/* ---------- values ---------- */
+var NUM_RE = /^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+function isNum(v){
+  if (typeof v === 'number') return isFinite(v);
+  return typeof v === 'string' && v.trim() !== '' && NUM_RE.test(v.trim());
+}
+function numOf(v){ return typeof v === 'number' ? v : parseFloat(String(v)); }
+function group(n){
+  var s = String(n), neg = s.charAt(0) === '-';
+  if (neg) s = s.slice(1);
+  var p = s.split('.'), i = p[0], out = '';
+  for (var c = 0; c < i.length; c++){
+    if (c > 0 && (i.length - c) % 3 === 0) out += ',';
+    out += i.charAt(c);
+  }
+  return (neg ? '-' : '') + out + (p[1] !== undefined ? '.' + p[1] : '');
+}
+/* Display form for a cell. Integers get thousand separators; decimals and
+   scientific notation (BigQuery hands back things like 1.9999E8) are shown
+   as the number they actually are, never re-rounded beyond 4 places. */
+function fmt(v){
+  if (v === null || v === undefined) return '\u2014';
+  if (typeof v === 'object') return JSON.stringify(v);
+  var s = String(v);
+  if (!isNum(s)) return s;
+  var t = s.trim();
+  if (/^-?\d+$/.test(t)) return group(t);
+  var n = numOf(t);
+  if (/[eE]/.test(t)) {
+    return Number.isInteger(n) ? group(n) : group(n.toFixed(4).replace(/0+$/, '').replace(/\.$/, ''));
+  }
+  return group(t);
+}
+function bigInt(v){ return v === null || v === undefined ? '\u2014' : fmt(v); }
+
+/* Look-ups against the inlined payload. */
+var STAGES = DATA.stages || [];
+function stage(id){
+  for (var i = 0; i < STAGES.length; i++) if (STAGES[i].id === id) return STAGES[i];
+  return null;
+}
+function view(stageId, viewName){
+  var s = stage(stageId);
+  if (!s) return null;
+  for (var i = 0; i < (s.results || []).length; i++)
+    if (s.results[i].view === viewName && !s.results[i].error) return s.results[i];
+  return null;
+}
+function row0(stageId, viewName){
+  var v = view(stageId, viewName);
+  return v && v.rows && v.rows.length ? v.rows[0] : null;
+}
+function cell(r, k){ return r && r[k] !== undefined ? r[k] : null; }
+
+/* ---------- SQL highlighting ---------- */
+var KEYWORDS = ('select from where group by order having limit offset as on join left right full inner outer cross ' +
+  'union all distinct case when then else end and or not in is null true false create replace table view function ' +
+  'procedure temp temporary if exists insert into values update set delete merge using with partition cluster options ' +
+  'schema dataset declare begin default returns language js sql return call execute immediate over window rows range ' +
+  'between unbounded preceding following current row asc desc cast safe_cast struct array unnest qualify recursive ' +
+  'primary key foreign references grant to interval extract date datetime timestamp numeric bignumeric string bytes ' +
+  'int64 float64 bool json geography exception raise loop while do for end_if assert drop alter add column rename ' +
+  'describe explain lateral pivot unpivot tablesample repeatable model remote connection').split(' ');
+var KWSET = {};
+for (var _i = 0; _i < KEYWORDS.length; _i++) KWSET[KEYWORDS[_i]] = 1;
+
+function esc(s){
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+var TOKEN_RE = new RegExp(
+  '(/\\*[\\s\\S]*?\\*/)' +          /* block comment  */
+  '|(--[^\\n]*|#[^\\n]*)' +          /* line comment   */
+  "|(\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?''')" +  /* triple quoted */
+  "|('(?:\\\\.|[^'\\\\\\n])*'|\"(?:\\\\.|[^\"\\\\\\n])*\")" +  /* string      */
+  '|(`[^`]*`)' +                     /* quoted ident   */
+  '|(\\b\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?\\b)' + /* number  */
+  '|([A-Za-z_][A-Za-z0-9_]*)',       /* word           */
+  'g');
+
+function highlight(sql){
+  var out = '', last = 0, m;
+  TOKEN_RE.lastIndex = 0;
+  while ((m = TOKEN_RE.exec(sql)) !== null){
+    out += esc(sql.slice(last, m.index));
+    var t = m[0], cls = null;
+    if (m[1] || m[2]) cls = 'k-com';
+    else if (m[3] || m[4]) cls = 'k-str';
+    else if (m[5]) cls = null;
+    else if (m[6]) cls = 'k-num';
+    else if (m[7]){
+      var lower = t.toLowerCase();
+      if (KWSET[lower]) cls = 'k-kw';
+      else if (sql.charAt(m.index + t.length) === '(') cls = 'k-fn';
+    }
+    out += cls ? '<span class="' + cls + '">' + esc(t) + '</span>' : esc(t);
+    last = m.index + t.length;
+  }
+  out += esc(sql.slice(last));
+  return out;
+}
+function numberedCode(sql){
+  /* A trailing newline is a line terminator, not an extra line -- keep the
+     gutter agreeing with the "N lines" count in the header. */
+  var lines = highlight(sql.replace(/\n$/, '')).split('\n'), out = '';
+  for (var i = 0; i < lines.length; i++)
+    out += '<span class="ln">' + (i + 1) + '</span>' + lines[i] + '\n';
+  return out;
+}
+
+/* ---------- tables ---------- */
+var FILTER_AT = 12;   /* rows above this get a filter box */
+var TRUNC_AT  = 140;  /* characters above this get truncated with a title */
+
+function buildTable(res){
+  var box = el('div');
+  var cols = res.columns || [];
+  var rows = (res.rows || []).slice();
+  var numeric = {};
+  cols.forEach(function(c){
+    var seen = 0, num = 0;
+    rows.forEach(function(r){
+      var v = r[c];
+      if (v === null || v === undefined || v === '') return;
+      seen++; if (isNum(v)) num++;
+    });
+    numeric[c] = seen > 0 && num === seen;
+  });
+
+  var state = { col: null, dir: 1, q: '' };
+  var scroll = el('div', 'tscroll');
+  var table = el('table');
+  var thead = el('thead'), htr = el('tr');
+  var ths = {};
+  cols.forEach(function(c){
+    var th = el('th', numeric[c] ? 'n' : '');
+    th.appendChild(document.createTextNode(c));
+    var ar = el('span', 'ar', '\u25B4\u25BE');
+    th.appendChild(ar);
+    th.title = 'Sort by ' + c;
+    th.addEventListener('click', function(){
+      if (state.col === c) state.dir = -state.dir; else { state.col = c; state.dir = 1; }
+      draw();
+    });
+    ths[c] = { th: th, ar: ar };
+    htr.appendChild(th);
+  });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+  var tbody = el('tbody');
+  table.appendChild(tbody);
+  scroll.appendChild(table);
+
+  var shown = el('span', 'shown');
+  if (rows.length > FILTER_AT){
+    var bar = el('div', 'tbar');
+    var inp = el('input', 'filter');
+    inp.type = 'search';
+    inp.placeholder = 'Filter ' + rows.length + ' rows\u2026';
+    inp.setAttribute('aria-label', 'Filter rows of ' + res.view);
+    inp.addEventListener('input', function(){ state.q = inp.value.toLowerCase(); draw(); });
+    bar.appendChild(inp);
+    bar.appendChild(shown);
+    box.appendChild(bar);
+  }
+  box.appendChild(scroll);
+
+  function visible(){
+    if (!state.q) return rows;
+    return rows.filter(function(r){
+      for (var i = 0; i < cols.length; i++){
+        var v = r[cols[i]];
+        if (v !== null && v !== undefined && String(v).toLowerCase().indexOf(state.q) >= 0) return true;
+      }
+      return false;
+    });
+  }
+  function draw(){
+    var rs = visible().slice();
+    if (state.col){
+      var c = state.col, n = numeric[c], d = state.dir;
+      rs.sort(function(a, b){
+        var x = a[c], y = b[c];
+        var xn = x === null || x === undefined || x === '';
+        var yn = y === null || y === undefined || y === '';
+        if (xn && yn) return 0;
+        if (xn) return 1;      /* empties always sink */
+        if (yn) return -1;
+        if (n) return (numOf(x) - numOf(y)) * d;
+        return String(x).localeCompare(String(y)) * d;
+      });
+    }
+    cols.forEach(function(c){
+      ths[c].th.classList.toggle('sorted', state.col === c);
+      ths[c].ar.textContent = state.col === c ? (state.dir > 0 ? '\u25B4' : '\u25BE') : '\u25B4\u25BE';
+    });
+    clear(tbody);
+    rs.forEach(function(r){
+      var tr = el('tr');
+      cols.forEach(function(c){
+        var v = r[c];
+        var td = el('td', numeric[c] ? 'n' : '');
+        if (v === null || v === undefined || v === ''){
+          td.className += ' nil';
+          td.textContent = '\u2014';
+        } else {
+          var s = fmt(v);
+          if (s.length > TRUNC_AT){
+            /* slice one short of the budget so the ellipsis always buys the
+               reader something -- a value only a character over the limit
+               would otherwise be "truncated" to the same length. */
+            var sp = el('span', 'trunc', s.slice(0, TRUNC_AT - 1) + '\u2026');
+            sp.title = String(v);
+            td.appendChild(sp);
+          } else {
+            td.textContent = s;
+          }
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    shown.textContent = rs.length === rows.length
+      ? rows.length + ' rows'
+      : rs.length + ' of ' + rows.length + ' rows';
+  }
+  draw();
+  return box;
+}
+"""
+
+JS += r"""
+/* ---------- hand-rolled SVG: horizontal bars ---------- */
+function barChart(rows, labelCol, valueCol, opts){
+  opts = opts || {};
+  var W = 760, LBL = opts.labelWidth || 190, PAD = 96, RH = 26, TOP = 4;
+  var H = TOP * 2 + rows.length * RH;
+  var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img' });
+  svg.setAttribute('aria-label', opts.aria || 'bar chart');
+  var max = 0;
+  rows.forEach(function(r){ var v = numOf(r[valueCol]); if (isFinite(v) && v > max) max = v; });
+  if (max <= 0) max = 1;
+  var track = W - LBL - PAD;
+  rows.forEach(function(r, i){
+    var y = TOP + i * RH;
+    var v = numOf(r[valueCol]); if (!isFinite(v)) v = 0;
+    var w = Math.max(v > 0 ? 2 : 0, Math.round(track * (v / max)));
+    var lbl = svgEl('text', { x: LBL - 12, y: y + 15, 'text-anchor': 'end', class: 's-lbl' });
+    lbl.textContent = String(r[labelCol]);
+    svg.appendChild(lbl);
+    svg.appendChild(svgEl('rect', { x: LBL, y: y + 5, width: track, height: 14, rx: 3, class: 's-track' }));
+    svg.appendChild(svgEl('rect', {
+      x: LBL, y: y + 5, width: w, height: 14, rx: 3,
+      class: 'b' + (opts.colour !== undefined ? opts.colour : (i % 5))
+    }));
+    var val = svgEl('text', { x: LBL + track + 10, y: y + 16, class: 's-val' });
+    val.textContent = fmt(r[valueCol]);
+    svg.appendChild(val);
+  });
+  return svg;
+}
+
+/* ---------- hand-rolled SVG: funnel ---------- */
+/* Widths are log-scaled: the first step is five orders of magnitude bigger
+   than the last, so a linear funnel would draw the last steps as nothing. */
+function funnel(steps){
+  var W = 760, LBL = 214, VAL = 132, RH = 54, TOP = 6;
+  var cw = W - LBL - VAL, cx = LBL + cw / 2;
+  var H = TOP * 2 + steps.length * RH;
+  var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img' });
+  svg.setAttribute('aria-label', 'pipeline funnel');
+  var max = 0;
+  steps.forEach(function(s){ if (s.value > max) max = s.value; });
+  function width(v){
+    if (!(v > 0)) return 6;
+    var f = Math.log10(v + 1) / Math.log10(max + 1);
+    return Math.max(24, cw * Math.pow(f, 3));
+  }
+  steps.forEach(function(s, i){
+    var y = TOP + i * RH;
+    var w1 = width(s.value);
+    var w2 = width(i + 1 < steps.length ? steps[i + 1].value : s.value);
+    var pts = [
+      (cx - w1 / 2) + ',' + y,
+      (cx + w1 / 2) + ',' + y,
+      (cx + w2 / 2) + ',' + (y + RH - 8),
+      (cx - w2 / 2) + ',' + (y + RH - 8)
+    ].join(' ');
+    var poly = svgEl('polygon', { points: pts, class: 'f-shape' });
+    poly.setAttribute('opacity', String(0.92 - i * 0.11));
+    svg.appendChild(poly);
+
+    var lbl = svgEl('text', { x: LBL - 16, y: y + 19, 'text-anchor': 'end', class: 's-lbl' });
+    lbl.textContent = s.label;
+    svg.appendChild(lbl);
+    if (s.source){
+      var src = svgEl('text', { x: LBL - 16, y: y + 34, 'text-anchor': 'end', class: 's-lbl' });
+      src.setAttribute('opacity', '.7');
+      src.textContent = s.source;
+      svg.appendChild(src);
+    }
+    var val = svgEl('text', { x: W - VAL + 16, y: y + 19, class: 's-val' });
+    val.textContent = fmt(s.value);
+    svg.appendChild(val);
+    if (s.note){
+      var nt = svgEl('text', { x: W - VAL + 16, y: y + 34, class: 's-lbl' });
+      nt.textContent = s.note;
+      svg.appendChild(nt);
+    }
+  });
+  return svg;
+}
+function vizBox(title, svg, caption){
+  var b = el('div', 'viz');
+  if (title){
+    var h = el('div', 'sec-h');
+    h.appendChild(el('h3', null, title));
+    b.appendChild(h);
+  }
+  b.appendChild(svg);
+  if (caption) b.appendChild(el('div', 'cap', caption));
+  return b;
+}
+
+/* ---------- declarative chart specs -------------------------------------
+   Optional decoration only. Anything whose view or columns are missing from
+   the payload is skipped, so a changed pipeline degrades to tables alone. */
+var CHART_SPECS = {
+  v_source_profile:        { label: 'source_system', value: 'records',  title: 'Records per source system' },
+  v_candidate_funnel:      { label: 'tier',          value: 'pairs',    title: 'Scored pairs by tier' },
+  v_retrieval_legs:        { label: 'retrieved_by',  value: 'pairs_retrieved', title: 'Pairs retrieved, by leg' },
+  v_adjudication_summary:  { label: 'verdict',       value: 'pairs',    title: 'Adjudicator verdicts' },
+  v_graph_summary:         { label: 'element',       value: 'n',        title: 'Graph elements' },
+  v_cluster_sizes:         { label: 'cluster_size',  value: 'people',   title: 'People by cluster size', labelWidth: 110 },
+  v_survivorship_by_source:{ label: 'source_system', value: 'fields_won', title: 'Fields won per source' },
+  v_embedding_health:      { label: 'source_system', value: 'embedded', title: 'Records embedded per source' },
+  v_case_results:          { label: 'case_type',     value: 'recall',   title: 'Recall per hard case', labelWidth: 220 }
+};
+function chartFor(res){
+  var spec = CHART_SPECS[res.view];
+  if (!spec || !res.rows || !res.rows.length) return null;
+  var cols = res.columns || [];
+  if (cols.indexOf(spec.label) < 0 || cols.indexOf(spec.value) < 0) return null;
+  var rows = res.rows.filter(function(r){ return isNum(r[spec.value]); });
+  if (rows.length < 2 || rows.length > 24) return null;
+  return vizBox(spec.title,
+    barChart(rows, spec.label, spec.value, { labelWidth: spec.labelWidth, colour: 0, aria: spec.title }),
+    'Drawn from ' + res.view + '.' + spec.value + '.');
+}
+"""
+
+JS += r"""
+/* ---------- overview ---------- */
+function statCard(k, v, foot, tone, small){
+  var c = el('div', 'card hero' + (tone ? ' ' + tone : ''));
+  c.appendChild(el('div', 'k', k));
+  c.appendChild(el('div', 'v' + (small ? ' sm' : ''), v));
+  if (foot) c.appendChild(el('div', 'f', foot));
+  return c;
+}
+function kvGrid(pairs){
+  var g = el('div', 'kv');
+  pairs.forEach(function(p){
+    var r = el('div', 'row');
+    r.appendChild(el('span', 'k', p[0]));
+    r.appendChild(el('span', 'v', p[1] === null || p[1] === undefined ? '\u2014' : String(p[1])));
+    g.appendChild(r);
+  });
+  return g;
+}
+
+function renderOverview(main){
+  clear(main);
+  var w = el('div', 'wrap');
+
+  w.appendChild(el('div', 'eyebrow', 'Stage explorer \u00b7 ' + STAGES.length + ' stages'));
+  var h = el('h2', null, 'Customer MDM on BigQuery');
+  w.appendChild(h);
+  w.appendChild(el('p', 'lede',
+    'Every stage of the resolution pipeline, with the SQL that ran and the results it '
+    + 'produced against a ' + fmt((DATA.corpus || {}).records) + '-record corpus containing '
+    + fmt((DATA.corpus || {}).people) + ' real people. Numbers below are read straight out of '
+    + 'the run \u2014 nothing here is illustrative.'));
+
+  var sc = row0('95_scorecard', 'v_scorecard');
+  if (sc){
+    var s = el('div', 'sec');
+    var sh = el('div', 'sec-h');
+    sh.appendChild(el('h3', null, 'Scorecard'));
+    sh.appendChild(el('span', 'count', 'measured against ground truth held in a separate dataset'
+      + (cell(sc, 'scored_at') ? ' \u00b7 scored ' + cell(sc, 'scored_at') : '')));
+    s.appendChild(sh);
+
+    var cards = el('div', 'cards');
+    cards.appendChild(statCard('Pairwise precision', fmt(cell(sc, 'pairwise_precision')),
+      fmt(cell(sc, 'tp')) + ' true positives \u00b7 ' + fmt(cell(sc, 'fp')) + ' false positives', ''));
+    cards.appendChild(statCard('Pairwise recall', fmt(cell(sc, 'pairwise_recall')),
+      fmt(cell(sc, 'fn')) + ' false negatives', 'g'));
+    cards.appendChild(statCard('Pairwise F1', fmt(cell(sc, 'pairwise_f1')),
+      'harmonic mean of the two', 'y'));
+    cards.appendChild(statCard('People predicted',
+      fmt(cell(sc, 'predicted_people')),
+      'against ' + fmt(cell(sc, 'true_people')) + ' true \u00b7 ratio '
+      + fmt(cell(sc, 'people_count_ratio')), 'r'));
+    s.appendChild(cards);
+
+    var sub = el('div', 'cards');
+    sub.style.marginTop = '14px';
+    sub.appendChild(statCard('Pairs evaluated', fmt(cell(sc, 'pairs_evaluated')), null, null, true));
+    sub.appendChild(statCard('Sent to the LLM', fmt(cell(sc, 'pairs_sent_to_llm')),
+      fmt(cell(sc, 'pct_of_pairs_using_an_llm')) + '% of pairs', null, true));
+    sub.appendChild(statCard('Queued for a human', fmt(cell(sc, 'pairs_queued_for_a_human')),
+      fmt(cell(sc, 'pct_of_decisions_deferred')) + '% of decisions deferred', null, true));
+    sub.appendChild(statCard('Clusters with >1 person', fmt(cell(sc, 'clusters_containing_multiple_people')),
+      fmt(cell(sc, 'people_split_across_clusters')) + ' people split across clusters', null, true));
+    s.appendChild(sub);
+
+    var bars = [
+      { m: 'Precision', v: cell(sc, 'pairwise_precision') },
+      { m: 'Recall',    v: cell(sc, 'pairwise_recall') },
+      { m: 'F1',        v: cell(sc, 'pairwise_f1') }
+    ].filter(function(b){ return isNum(b.v); });
+    if (bars.length){
+      var bx = el('div', 'sec');
+      bx.appendChild(vizBox(null,
+        barChart(bars, 'm', 'v', { labelWidth: 120, colour: 0, aria: 'precision, recall and F1' }),
+        'Scale 0\u20131. Source: v_scorecard in stage 95.'));
+      s.appendChild(bx);
+    }
+    w.appendChild(s);
+  }
+
+  /* funnel, assembled only from figures that are actually present */
+  var bf = row0('40_block', 'v_blocking_funnel');
+  var cf = view('50_candidates', 'v_candidate_funnel');
+  var tier = {};
+  if (cf) (cf.rows || []).forEach(function(r){ tier[r.tier] = r; });
+  var steps = [];
+  function push(label, value, source, note){
+    if (value === null || value === undefined || !isNum(value)) return;
+    steps.push({ label: label, value: numOf(value), source: source, note: note });
+  }
+  if (bf){
+    push('Every possible pair', cell(bf, 'pairs_brute_force'), 'v_blocking_funnel');
+    push('Survives blocking', cell(bf, 'candidate_pairs'), 'v_blocking_funnel',
+      cell(bf, 'pct_eliminated') ? fmt(cell(bf, 'pct_eliminated')) + '% eliminated' : null);
+  }
+  if (sc) push('Scored', cell(sc, 'pairs_evaluated'), 'v_scorecard');
+  if (tier.GREY_ZONE) push('Grey zone', cell(tier.GREY_ZONE, 'pairs'), 'v_candidate_funnel',
+    fmt(cell(tier.GREY_ZONE, 'pct')) + '% of scored');
+  if (sc) push('Sent to the LLM', cell(sc, 'pairs_sent_to_llm'), 'v_scorecard');
+  if (tier.AUTO_MATCH) push('Auto-matched on rules', cell(tier.AUTO_MATCH, 'pairs'), 'v_candidate_funnel');
+  if (steps.length >= 3){
+    var fs = el('div', 'sec');
+    var fh = el('div', 'sec-h');
+    fh.appendChild(el('h3', null, 'Where the comparison space goes'));
+    fs.appendChild(fh);
+    fs.appendChild(vizBox(null, funnel(steps),
+      'Widths are log-scaled \u2014 the top step is four orders of magnitude larger than the '
+      + 'bottom one, so a linear funnel would draw the later steps as nothing. Each row names '
+      + 'the view it came from.'));
+    w.appendChild(fs);
+  }
+
+  /* run configuration */
+  var cfg = el('div', 'sec');
+  var ch = el('div', 'sec-h');
+  ch.appendChild(el('h3', null, 'This run'));
+  cfg.appendChild(ch);
+  var pairs = [
+    ['Project', DATA.project], ['Dataset', DATA.dataset], ['Location', DATA.location]
+  ];
+  var corpus = DATA.corpus || {};
+  Object.keys(corpus).forEach(function(k){
+    pairs.push(['Corpus \u00b7 ' + k, fmt(corpus[k])]);
+  });
+  var models = DATA.models || {};
+  Object.keys(models).forEach(function(k){ pairs.push(['Model \u00b7 ' + k, models[k]]); });
+  var th = DATA.thresholds || {};
+  Object.keys(th).forEach(function(k){ pairs.push([k, fmt(th[k])]); });
+  cfg.appendChild(kvGrid(pairs));
+  w.appendChild(cfg);
+
+  /* pipeline at a glance */
+  var pl = el('div', 'sec');
+  var ph = el('div', 'sec-h');
+  ph.appendChild(el('h3', null, 'The pipeline'));
+  pl.appendChild(ph);
+  var list = el('div', 'kv');
+  STAGES.forEach(function(s, i){
+    var r = el('div', 'row');
+    var btn = el('button', 'k');
+    btn.style.textAlign = 'left';
+    btn.style.color = 'var(--accent)';
+    btn.textContent = s.num + ' \u00b7 ' + s.title;
+    btn.addEventListener('click', function(){ go(i); });
+    r.appendChild(btn);
+    var n = (s.results || []).length;
+    r.appendChild(el('span', 'v', s.sql_lines + ' lines \u00b7 ' + n + (n === 1 ? ' view' : ' views')));
+    list.appendChild(r);
+  });
+  pl.appendChild(list);
+  w.appendChild(pl);
+
+  var foot = el('div', 'foot');
+  foot.appendChild(el('span', null, 'Self-contained page \u2014 no network access required.'));
+  var kb = el('span');
+  kb.appendChild(document.createTextNode('Navigate with '));
+  kb.appendChild(el('kbd', null, '\u2190'));
+  kb.appendChild(document.createTextNode(' '));
+  kb.appendChild(el('kbd', null, '\u2192'));
+  foot.appendChild(kb);
+  w.appendChild(foot);
+
+  main.appendChild(w);
+  main.scrollTop = 0;
+}
+"""
+
+JS += r"""
+/* ---------- a single stage ---------- */
+function renderStage(main, idx){
+  var s = STAGES[idx];
+  clear(main);
+  var w = el('div', 'wrap');
+
+  w.appendChild(el('div', 'eyebrow',
+    'Stage ' + s.num + ' \u00b7 ' + (idx + 1) + ' of ' + STAGES.length));
+  w.appendChild(el('h2', null, s.title));
+  if (s.summary) w.appendChild(el('p', 'lede', s.summary));
+
+  /* SQL, collapsed by default */
+  if (s.sql){
+    var sec = el('div', 'sec');
+    var box = el('div', 'sqlbox');
+    var bar = el('button', 'sqlbar');
+    bar.setAttribute('aria-expanded', 'false');
+    bar.appendChild(el('span', 'car', '\u25B6'));
+    bar.appendChild(el('span', 'lbl', 'SQL \u00b7 ' + s.id + '.sql'));
+    bar.appendChild(el('span', 'meta', s.sql_lines + ' lines'));
+    bar.appendChild(el('span', 'sp'));
+    var hint = el('span', 'meta', 'show');
+    bar.appendChild(hint);
+    var body = el('div', 'sqlbody');
+    var pre = el('pre', 'code');
+    var rendered = false;
+    bar.addEventListener('click', function(){
+      var open = box.classList.toggle('open');
+      bar.setAttribute('aria-expanded', open ? 'true' : 'false');
+      hint.textContent = open ? 'hide' : 'show';
+      if (open && !rendered){ pre.innerHTML = numberedCode(s.sql); rendered = true; }
+    });
+    body.appendChild(pre);
+    box.appendChild(bar);
+    box.appendChild(body);
+    sec.appendChild(box);
+    w.appendChild(sec);
+  }
+
+  /* results */
+  var results = s.results || [];
+  if (!results.length){
+    var none = el('div', 'sec');
+    none.appendChild(el('div', 'err',
+      'This stage produces no result view of its own \u2014 it creates objects the later '
+      + 'stages read. The SQL above is the whole story.'));
+    w.appendChild(none);
+  }
+  results.forEach(function(res){
+    var sec = el('div', 'sec');
+    var head = el('div', 'sec-h');
+    head.appendChild(el('h3', null, res.view));
+    if (res.error){
+      head.appendChild(el('span', 'badge', 'not available'));
+      sec.appendChild(head);
+      sec.appendChild(el('div', 'err',
+        'This view was not available when the results were extracted' +
+        (typeof res.error === 'string' && res.error !== 'not available' ? ' (' + res.error + ')' : '') +
+        '. Re-run the stage, then extract_results.py, to populate it.'));
+      w.appendChild(sec);
+      return;
+    }
+    var n = res.row_count !== undefined ? res.row_count : (res.rows || []).length;
+    head.appendChild(el('span', 'count', n + (n === 1 ? ' row' : ' rows')
+      + ' \u00b7 ' + (res.columns || []).length + ' columns'));
+    sec.appendChild(head);
+    var chart = chartFor(res);
+    if (chart){ chart.style.marginBottom = '16px'; sec.appendChild(chart); }
+    sec.appendChild(buildTable(res));
+    w.appendChild(sec);
+  });
+
+  var foot = el('div', 'foot');
+  if (idx > 0) foot.appendChild(navLink('\u2190 ' + STAGES[idx - 1].num + ' ' + STAGES[idx - 1].title, idx - 1));
+  if (idx < STAGES.length - 1) foot.appendChild(navLink(STAGES[idx + 1].num + ' ' + STAGES[idx + 1].title + ' \u2192', idx + 1));
+  w.appendChild(foot);
+
+  main.appendChild(w);
+  main.scrollTop = 0;
+}
+function navLink(text, idx){
+  var b = el('button', null, text);
+  b.style.color = 'var(--accent)';
+  b.addEventListener('click', function(){ go(idx); });
+  return b;
+}
+
+/* ---------- chrome: sidebar, rail, theme, routing ---------- */
+var current = -1;   /* -1 == overview */
+var navItems = [], railDots = [];
+
+function buildNav(){
+  var nav = document.getElementById('nav');
+  nav.appendChild(el('div', 'navhead', 'Overview'));
+  var ov = el('button', 'navitem');
+  ov.appendChild(el('span', 'nn', '\u2022'));
+  ov.appendChild(el('span', 'nt', 'Run summary & scorecard'));
+  ov.addEventListener('click', function(){ go(-1); });
+  nav.appendChild(ov);
+  navItems.push(ov);
+
+  nav.appendChild(el('div', 'navhead', 'Stages'));
+  STAGES.forEach(function(s, i){
+    var b = el('button', 'navitem');
+    b.appendChild(el('span', 'nn', s.num));
+    b.appendChild(el('span', 'nt', s.title));
+    var n = (s.results || []).length;
+    b.appendChild(el('span', 'nmeta', n ? n + (n === 1 ? ' view' : ' views') : 'no result view'));
+    b.addEventListener('click', function(){ go(i); });
+    nav.appendChild(b);
+    navItems.push(b);
+  });
+}
+function buildRail(){
+  var rail = document.getElementById('rail');
+  rail.appendChild(el('span', 'rl', 'Pipeline'));
+  STAGES.forEach(function(s, i){
+    var step = el('div', 'rstep');
+    if (i > 0) step.appendChild(el('span', 'rline'));
+    var d = el('button', 'rdot', s.num);
+    d.title = s.num + ' \u00b7 ' + s.title;
+    d.setAttribute('aria-label', 'Stage ' + s.num + ': ' + s.title);
+    d.addEventListener('click', function(){ go(i); });
+    step.appendChild(d);
+    rail.appendChild(step);
+    railDots.push(d);
+  });
+}
+function mark(){
+  navItems.forEach(function(b, i){ b.classList.toggle('on', i - 1 === current); });
+  railDots.forEach(function(d, i){
+    d.classList.toggle('on', i === current);
+    d.classList.toggle('seen', current >= 0 && i < current);
+  });
+  document.title = current < 0
+    ? 'Stage explorer \u00b7 ' + DATA.project + '.' + DATA.dataset
+    : STAGES[current].num + ' ' + STAGES[current].title + ' \u00b7 stage explorer';
+}
+function go(idx){
+  if (idx < -1) idx = -1;
+  if (idx > STAGES.length - 1) idx = STAGES.length - 1;
+  current = idx;
+  var main = document.getElementById('main');
+  if (idx < 0) renderOverview(main); else renderStage(main, idx);
+  mark();
+  var dot = railDots[idx < 0 ? 0 : idx];
+  if (dot && dot.scrollIntoView) dot.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+var THEME_KEY = 'cdp-explorer-theme';
+function readTheme(){
+  try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
+}
+function applyTheme(t){
+  document.body.classList.toggle('dark', t === 'dark');
+  var b = document.getElementById('theme');
+  if (b){
+    // Target the span, not lastChild: the markup has a newline after
+    // </span>, so lastChild is a whitespace text node and writing to it
+    // leaves the original label in place -- the button renders "Dark Dark".
+    var lbl = b.querySelector('span');
+    if (lbl) lbl.textContent = t === 'dark' ? 'Light' : 'Dark';
+    b.setAttribute('aria-pressed', t === 'dark' ? 'true' : 'false');
+    b.title = t === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme';
+  }
+}
+function initTheme(){
+  applyTheme(readTheme() === 'dark' ? 'dark' : 'light');
+  document.getElementById('theme').addEventListener('click', function(){
+    var next = document.body.classList.contains('dark') ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* storage disabled */ }
+  });
+}
+
+function initKeys(){
+  document.addEventListener('keydown', function(e){
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var t = e.target || {};
+    var tag = (t.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || t.isContentEditable) return;
+    if (e.key === 'ArrowRight'){ e.preventDefault(); go(current + 1); }
+    else if (e.key === 'ArrowLeft'){ e.preventDefault(); go(current - 1); }
+    else if (e.key === 'Home'){ e.preventDefault(); go(-1); }
+    else if (e.key === 'End'){ e.preventDefault(); go(STAGES.length - 1); }
+  });
+}
+
+function initChips(){
+  var c = document.getElementById('chips');
+  var bits = [DATA.project + '.' + DATA.dataset];
+  if (DATA.location) bits.push(DATA.location);
+  var corpus = DATA.corpus || {};
+  if (corpus.records) bits.push(fmt(corpus.records) + ' records');
+  if (corpus.people) bits.push(fmt(corpus.people) + ' people');
+  bits.forEach(function(b){ c.appendChild(el('span', 'chip', b)); });
+}
+
+function boot(){
+  initTheme();
+  initChips();
+  buildNav();
+  buildRail();
+  initKeys();
+  go(-1);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();
+"""
+
+# --------------------------------------------------------------------------
+# Page shell.
+# --------------------------------------------------------------------------
+HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="build_explorer.py">
+<meta name="description" content="Stage-by-stage explorer for the BigQuery customer MDM pipeline.">
+<title>Stage explorer &middot; __TITLE__</title>
+<!-- Self-contained by design: no stylesheet, script, font or image is loaded
+     over the network. This page renders identically with the wifi off. -->
+<style>
+__CSS__
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>Customer MDM &middot; stage explorer</h1>
+    <span class="sub">__SUBTITLE__</span>
+  </div>
+  <div class="hdr-spacer"></div>
+  <div class="chips" id="chips"></div>
+  <button class="tgl" id="theme" aria-pressed="false" title="Switch to the dark theme">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
+         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+    </svg>
+    <span>Dark</span>
+  </button>
+</header>
+<div class="rail" id="rail"></div>
+<div class="shell">
+  <nav id="nav" aria-label="Pipeline stages"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+<script>
+var DATA = __DATA__;
+</script>
+<script>
+__JS__
+</script>
+</body>
+</html>
+"""
+
+
+def js_literal(payload: dict) -> str:
+    """JSON that is safe to drop between <script> tags.
+
+    ensure_ascii keeps the file pure ASCII, which sidesteps both encoding
+    surprises and the U+2028/U+2029 line-terminator trap in older parsers.
+    """
+    text = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+    # A literal </script or <!-- inside a string would end the block early.
+    return text.replace("</", "<\\/").replace("<!--", "<\\u0021--")
+
+
+def load(results_path: Path) -> dict:
+    with results_path.open(encoding="utf-8") as fh:
+        data = json.load(fh)
+    if "stages" not in data or not isinstance(data["stages"], list):
+        raise SystemExit(f"{results_path}: no stages[] -- is this extract_results.py output?")
+    # The SQL is normally carried in the JSON. Fall back to disk if a stage
+    # was extracted without it, so the page is never missing the code.
+    for stage in data["stages"]:
+        if not stage.get("sql"):
+            src = SQL_DIR / f"{stage.get('id', '')}.sql"
+            if src.is_file():
+                text = src.read_text(encoding="utf-8")
+                stage["sql"] = text
+                stage["sql_lines"] = len(text.splitlines())
+        stage.setdefault("sql", "")
+        stage.setdefault("sql_lines", len(str(stage.get("sql", "")).splitlines()))
+        stage.setdefault("results", [])
+    return data
+
+
+def build(data: dict) -> str:
+    project = str(data.get("project", ""))
+    dataset = str(data.get("dataset", ""))
+    corpus = data.get("corpus") or {}
+    subtitle = f"{project}.{dataset}" if project or dataset else "BigQuery"
+    bits = []
+    if corpus.get("records"):
+        bits.append(f"{int(float(corpus['records'])):,} records")
+    if data.get("location"):
+        bits.append(str(data["location"]))
+    if bits:
+        subtitle += " \u2014 " + " \u00b7 ".join(bits)
+    html = HTML
+    html = html.replace("__CSS__", CSS.strip())
+    html = html.replace("__TITLE__", f"{project}.{dataset}".strip("."))
+    html = html.replace("__SUBTITLE__", subtitle)
+    html = html.replace("__DATA__", js_literal(data))
+    html = html.replace("__JS__", JS.strip())
+    return html
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--results", type=Path, default=DEFAULT_RESULTS,
+                    help=f"extract_results.py output (default: {DEFAULT_RESULTS})")
+    ap.add_argument("--out", type=Path, default=DEFAULT_OUT,
+                    help=f"HTML file to write (default: {DEFAULT_OUT})")
+    args = ap.parse_args(argv)
+
+    if not args.results.is_file():
+        print(f"error: {args.results} not found. Run extract_results.py first.", file=sys.stderr)
+        return 1
+
+    data = load(args.results)
+    html = build(data)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(html, encoding="utf-8")
+
+    views = sum(len(s.get("results", [])) for s in data["stages"])
+    kb = args.out.stat().st_size / 1024
+    print(f"wrote {args.out}  ({kb:,.0f} KB, {len(data['stages'])} stages, {views} views, no external references)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

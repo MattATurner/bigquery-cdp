@@ -260,23 +260,36 @@ if [[ -z "${ONLY}" && "${FROM}" -le 10 ]]; then
 
   if [[ "${DRY}" != "1" ]]; then
     bold "2. Upload sources to GCS"
+    # `gcloud storage`, not `gsutil`: gsutil writes a lock file into
+    # ~/.gsutil and dies with "Read-only file system" wherever HOME is not
+    # writable, which kills the run before a single stage executes. gcloud
+    # storage honours CLOUDSDK_CONFIG, is parallel by default (so -m is
+    # unnecessary), and is the supported successor.
     # Everything goes to GCS, including the files destined for managed
     # tables: 10_land_sources.sql uses LOAD DATA ... FROM FILES so that the
     # whole landing step is expressible in SQL rather than split between
     # bash and SQL. The layout below is load-bearing — the URIs are
     # hardcoded in 10_land_sources.sql.
-    gsutil -m -q cp \
+    gcloud storage cp \
       "${HERE}/data/crm_customers.csv" \
       "${HERE}/data/ecom_accounts.csv" \
       "${HERE}/data/loyalty_members.csv" \
       "${HERE}/data/consent_events.csv" \
       "${HERE}/data/call_transcripts_manifest.csv" \
       "gs://${CDP_BUCKET}/raw/"
-    gsutil -m -q cp "${HERE}/data/pos_transactions.csv"     "gs://${CDP_BUCKET}/pos/"
-    gsutil -m -q cp "${HERE}/data/support_tickets.parquet"  "gs://${CDP_BUCKET}/support/"
-    gsutil -m -q cp "${HERE}/data/third_party_enrich.jsonl" "gs://${CDP_BUCKET}/enrich/"
-    gsutil -m -q cp -r "${HERE}/data/call_transcripts"      "gs://${CDP_BUCKET}/"
-    gsutil -m -q cp \
+    gcloud storage cp "${HERE}/data/pos_transactions.csv"     "gs://${CDP_BUCKET}/pos/"
+    gcloud storage cp "${HERE}/data/support_tickets.parquet"  "gs://${CDP_BUCKET}/support/"
+    gcloud storage cp "${HERE}/data/third_party_enrich.jsonl" "gs://${CDP_BUCKET}/enrich/"
+    # Clear the prefix first. Transcript filenames are content-hashed, so a
+    # regenerated corpus writes NEW names rather than overwriting the old
+    # ones -- the object table then counts both and every downstream number
+    # is quietly computed over two corpora at once. Observed: 442 local
+    # files, 875 in the bucket. The row-count check below does catch it, but
+    # only after stage 10 has already run.
+    gcloud storage rm --recursive "gs://${CDP_BUCKET}/call_transcripts" \
+      >/dev/null 2>&1 || true
+    gcloud storage cp -r "${HERE}/data/call_transcripts"      "gs://${CDP_BUCKET}/"
+    gcloud storage cp \
       "${HERE}/data/truth/person_truth.csv" \
       "${HERE}/data/truth/case_catalogue.csv" \
       "gs://${CDP_BUCKET}/truth/"

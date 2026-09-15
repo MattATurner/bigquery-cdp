@@ -129,7 +129,6 @@ bold "6. Validating"
 
 command -v bq      >/dev/null 2>&1 || die "bq not found. Install the Google Cloud SDK."
 command -v gcloud  >/dev/null 2>&1 || die "gcloud not found. Install the Google Cloud SDK."
-command -v gsutil  >/dev/null 2>&1 || die "gsutil not found. Install the Google Cloud SDK."
 command -v python3 >/dev/null 2>&1 || die "python3 not found."
 ok "CLI tools present"
 
@@ -148,9 +147,14 @@ else
 fi
 
 # --- Bucket -----------------------------------------------------------
-if gsutil ls -b "gs://${CDP_BUCKET}" >/dev/null 2>&1; then
-  BUCKET_LOC="$(gsutil ls -L -b "gs://${CDP_BUCKET}" 2>/dev/null \
-                | awk -F': *' '/Location constraint/{print toupper($2)}' | tr -d '[:space:]')"
+# `gcloud storage`, not `gsutil`: gsutil writes a lock file under ~/.gsutil and
+# dies with "Read-only file system" wherever HOME is not writable, which kills
+# setup before it reaches the connection step. gcloud storage honours
+# CLOUDSDK_CONFIG and is the supported successor.
+if gcloud storage buckets describe "gs://${CDP_BUCKET}" >/dev/null 2>&1; then
+  BUCKET_LOC="$(gcloud storage buckets describe "gs://${CDP_BUCKET}" \
+    --format='value(location)' 2>/dev/null \
+    | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
   if [[ -n "${BUCKET_LOC}" && "${BUCKET_LOC}" != "$(echo "${CDP_LOCATION}" | tr '[:lower:]' '[:upper:]')" ]]; then
     fail "Bucket is in ${BUCKET_LOC} but BigQuery location is ${CDP_LOCATION}."
     die  "External tables require both in the same location. Use a different bucket or location."
@@ -160,7 +164,8 @@ else
   warn "Bucket gs://${CDP_BUCKET} does not exist."
   read -r -p "  Create it in ${CDP_LOCATION}? [Y/n]: " mk
   if [[ ! "${mk}" =~ ^[Nn]$ ]]; then
-    gsutil mb -p "${CDP_PROJECT}" -l "${CDP_LOCATION}" "gs://${CDP_BUCKET}" \
+    gcloud storage buckets create "gs://${CDP_BUCKET}" \
+      --project="${CDP_PROJECT}" --location="${CDP_LOCATION}" \
       && ok "Created gs://${CDP_BUCKET}"
   else
     die "A bucket is required for the external and object tables."

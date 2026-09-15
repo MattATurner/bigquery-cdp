@@ -34,7 +34,7 @@ procedure, the vector indexes and the search index in one go.
 ## 2 · Storage
 
 ```bash
-gsutil -m rm -r "gs://${CDP_BUCKET}/raw" \
+gcloud storage rm --recursive "gs://${CDP_BUCKET}/raw" \
                 "gs://${CDP_BUCKET}/pos" \
                 "gs://${CDP_BUCKET}/support" \
                 "gs://${CDP_BUCKET}/enrich" \
@@ -45,7 +45,7 @@ gsutil -m rm -r "gs://${CDP_BUCKET}/raw" \
 Or, if `setup.sh` created the bucket for you and nothing else uses it:
 
 ```bash
-gsutil -m rm -r "gs://${CDP_BUCKET}"
+gcloud storage rm --recursive "gs://${CDP_BUCKET}"
 ```
 
 ## 3 · The connection — the one people forget
