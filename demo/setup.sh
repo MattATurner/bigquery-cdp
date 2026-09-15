@@ -94,6 +94,7 @@ ask CDP_ACCEPT_CONFIDENCE  "Accept adjudicator verdict above" "0.85"
 ask CDP_STEWARD_CONFIDENCE "Send to steward above"       "0.60"
 ask CDP_TAU_LOW_IDENTITY   "Low-identity rail floor"     "0.15"
 ask CDP_TAU_SINGLE_SIGNAL  "Single-signal rail floor"    "0.40"
+ask CDP_MIN_NAME_SIMILARITY "Min name similarity (no-name-match pairs)" "0.70"
 
 echo
 # ---------------------------------------------------------------------
@@ -246,6 +247,7 @@ CDP_ACCEPT_CONFIDENCE="${CDP_ACCEPT_CONFIDENCE}"
 CDP_STEWARD_CONFIDENCE="${CDP_STEWARD_CONFIDENCE}"
 CDP_TAU_LOW_IDENTITY="${CDP_TAU_LOW_IDENTITY}"
 CDP_TAU_SINGLE_SIGNAL="${CDP_TAU_SINGLE_SIGNAL}"
+CDP_MIN_NAME_SIMILARITY="${CDP_MIN_NAME_SIMILARITY}"
 
 # Cost model. Unit prices are list prices captured 14 Sep 2026 — re-verify
 # before quoting. Targets are the customer's volume, not the demo's.

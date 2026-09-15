@@ -345,6 +345,30 @@ SELECT
     -- 16 true pairs out of 18,774 (0.085%) for a 71% smaller grey zone.
     -- Tighter floors cost recall fast: rail 5 at 0.20 loses 72 more true
     -- pairs to remove only 4,178 more junk.
+    -- NO NAME SIGNAL, NO CANDIDATE — at any score.
+    --
+    -- The score floor below was the wrong instrument on its own. combined_score
+    -- blends name, address, semantic and rule evidence, so a pair clears it on
+    -- address or semantic proximity while the names share nothing. Measured:
+    -- 15,859 grey-zone pairs (19%) had neither forename nor surname matching,
+    -- 14,500 of them from this rail, and only 65 were true. The adjudicator was
+    -- being asked to compare "Luis Manwlo" with "Layla Hancock" because they
+    -- shared a postcode. That is not evidence of a person, and it produces
+    -- rationales that make the whole thing look unserious.
+    --
+    -- A surname change on marriage still leaves a forename signal, so
+    -- MARRIED_NAME survives this. What gets cut is BOTH names differing with no
+    -- strong identifier to carry the pair.
+    --
+    -- Threshold swept against ground truth, not picked: 0.70 removes 13,036
+    -- junk pairs for 66 true ones. 0.65 keeps 583 more junk to save 7 true;
+    -- past 0.70 the trade turns sharply (0.65->0.70 cuts 374 junk per true lost).
+    WHEN (a_strength = 0 OR b_strength = 0)
+         AND NOT (email_match OR phone_match OR acct_match)
+         AND NOT semantic_strong
+         AND NOT (surname_match OR forename_match
+                  OR IFNULL(name_similarity, 0) >= ${CDP_MIN_NAME_SIMILARITY})
+                                                                    THEN 'REJECT'
     WHEN (a_strength = 0 OR b_strength = 0)
          AND NOT (email_match OR phone_match)
          AND NOT semantic_strong
@@ -368,6 +392,12 @@ SELECT
       THEN 'Shared loyalty account number, forenames consistent, nothing contradicting.'
     WHEN strong_signals >= 2 AND NOT forename_conflict
       THEN 'Two independent strong identifiers agree with no contradicting evidence.'
+    WHEN (a_strength = 0 OR b_strength = 0)
+         AND NOT (email_match OR phone_match OR acct_match)
+         AND NOT semantic_strong
+         AND NOT (surname_match OR forename_match
+                  OR IFNULL(name_similarity, 0) >= ${CDP_MIN_NAME_SIMILARITY})
+      THEN 'Neither forename nor surname matches and no strong identifier connects them — not a candidate at any score.'
     WHEN (a_strength = 0 OR b_strength = 0) AND NOT (email_match OR phone_match)
          AND NOT semantic_strong AND combined_score < ${CDP_TAU_LOW_IDENTITY}
       THEN 'One side carries almost no identity and the score is below the low-identity floor — nothing here for a human to adjudicate.'
