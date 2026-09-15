@@ -122,6 +122,35 @@ CREATE OR REPLACE FUNCTION `${CDP_PROJECT}.${CDP_DS}.norm_name`(s STRING) AS (
 -- Lowercase and strip +tags. Deliberately NOT dot-folding: that is only
 -- semantically correct for some providers, and applying it universally
 -- merges genuinely distinct addresses.
+-- A model instructed to "return NULL for anything not stated" returns the
+-- WORD. Measured on the first real run against BigQuery: 773 records arrived
+-- carrying account_number 'null' or 'NULL', and 365 carrying email 'null' --
+-- every one of them from the two AI-extracted sources (SUPPORT, CALL) and
+-- none from the five structured ones.
+--
+-- Left alone those are shared identifiers. acct_match fires between any two
+-- of them, so 660 unrelated people held the same "account number" and the
+-- pipeline was correct to think they matched. It is the single largest
+-- manufactured false-positive source in the build.
+--
+-- Strip at the boundary rather than relying on the prompt. The prompt wording
+-- is also fixed, but wording cannot be guaranteed and this cannot be bypassed
+-- by a model having a bad day. Applied to every AI-extracted string field in
+-- stage 20 before it reaches a comparison.
+CREATE OR REPLACE FUNCTION `${CDP_PROJECT}.${CDP_DS}.strip_sentinel`(s STRING) AS (
+  NULLIF(
+    CASE
+      WHEN LOWER(TRIM(IFNULL(s, ''))) IN (
+             'null', 'none', 'nil', 'n/a', 'na', 'unknown', 'undefined',
+             'not stated', 'not provided', 'not specified', 'unspecified',
+             'not available', 'no value', '-', '--', '?'
+           )
+      THEN ''
+      ELSE TRIM(IFNULL(s, ''))
+    END,
+  '')
+);
+
 CREATE OR REPLACE FUNCTION `${CDP_PROJECT}.${CDP_DS}.norm_email`(s STRING) AS (
   NULLIF(REGEXP_REPLACE(LOWER(TRIM(IFNULL(s, ''))), r'\+[^@]*@', '@'), '')
 );
