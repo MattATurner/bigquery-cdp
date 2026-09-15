@@ -327,9 +327,33 @@ SELECT
     WHEN dob_conflict                                               THEN 'GREY_ZONE'
     WHEN acct_match AND NOT forename_conflict                       THEN 'AUTO_MATCH'
     WHEN strong_signals >= 2 AND NOT forename_conflict              THEN 'AUTO_MATCH'
+    -- Rails 5 and 7 each divert to the adjudicator with no score floor at
+    -- all. Measured against ground truth on the first real run, that put
+    -- 1,871,745 pairs in the grey zone: 1,097,960 from rail 5 at an average
+    -- combined_score of 0.054, and 773,785 from rail 7. "It needs a human"
+    -- has to mean there is something for a human to look at; at that volume
+    -- it is not a review queue, it is a bill.
+    --
+    -- Both now carry a floor, chosen from a sweep against ground truth
+    -- rather than picked. The guard each rail exists for is unchanged: a
+    -- zero-identity pair still cannot reach the AUTO_MATCH rail below, and
+    -- semantic_strong still always earns a look.
+    --
+    --   rail 5 @ 0.15 -> removes 1,032,804 junk pairs, loses 14 true
+    --   rail 7 @ 0.40 -> removes   315,124 junk pairs, loses  2 true
+    --
+    -- 16 true pairs out of 18,774 (0.085%) for a 71% smaller grey zone.
+    -- Tighter floors cost recall fast: rail 5 at 0.20 loses 72 more true
+    -- pairs to remove only 4,178 more junk.
+    WHEN (a_strength = 0 OR b_strength = 0)
+         AND NOT (email_match OR phone_match)
+         AND NOT semantic_strong
+         AND combined_score < ${CDP_TAU_LOW_IDENTITY}               THEN 'REJECT'
     WHEN (a_strength = 0 OR b_strength = 0)
          AND NOT (email_match OR phone_match)                       THEN 'GREY_ZONE'
     WHEN combined_score >= ${CDP_TAU_HI} AND NOT forename_conflict  THEN 'AUTO_MATCH'
+    WHEN strong_signals >= 1 AND NOT semantic_strong
+         AND combined_score < ${CDP_TAU_SINGLE_SIGNAL}              THEN 'REJECT'
     WHEN strong_signals >= 1                                        THEN 'GREY_ZONE'
     WHEN semantic_strong                                            THEN 'GREY_ZONE'
     WHEN combined_score >= ${CDP_TAU_LO}                            THEN 'GREY_ZONE'
@@ -345,9 +369,15 @@ SELECT
     WHEN strong_signals >= 2 AND NOT forename_conflict
       THEN 'Two independent strong identifiers agree with no contradicting evidence.'
     WHEN (a_strength = 0 OR b_strength = 0) AND NOT (email_match OR phone_match)
+         AND NOT semantic_strong AND combined_score < ${CDP_TAU_LOW_IDENTITY}
+      THEN 'One side carries almost no identity and the score is below the low-identity floor — nothing here for a human to adjudicate.'
+    WHEN (a_strength = 0 OR b_strength = 0) AND NOT (email_match OR phone_match)
       THEN 'One side carries almost no identity; fuzzy similarity alone is not sufficient.'
     WHEN combined_score >= ${CDP_TAU_HI} AND NOT forename_conflict
       THEN 'Score above the auto-match threshold with no contradicting evidence.'
+    WHEN strong_signals >= 1 AND NOT semantic_strong
+         AND combined_score < ${CDP_TAU_SINGLE_SIGNAL}
+      THEN 'One strong identifier agrees but everything else disagrees — below the single-signal floor.'
     WHEN strong_signals >= 1
       THEN 'One strong identifier agrees, but not enough to act on alone.'
     WHEN semantic_strong
