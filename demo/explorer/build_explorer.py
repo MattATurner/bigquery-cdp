@@ -11,6 +11,12 @@ palette, the fonts, the data, the chart drawing -- lives inside that one file.
 Defaults to demo/explorer/results.json in and demo/explorer/index.html out,
 both resolved next to this script. Override with --results / --out.
 
+demo/explorer/steps.json (from extract_steps.py) is read alongside it when
+present: it carries, per stage, the statements that actually executed in
+BigQuery and the row/byte counts of the objects the stage read and wrote,
+plus the end-to-end pipeline funnel. It is optional -- without it the page
+builds exactly as it did before, minus those sections. Override with --steps.
+
 The data is INLINED as a JavaScript object literal rather than fetched. The
 page is opened over file://, where fetch() is blocked by CORS, so inlining is
 not a nicety -- it is the only thing that works.
@@ -24,6 +30,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_RESULTS = HERE / "results.json"
+DEFAULT_STEPS = HERE / "steps.json"
 DEFAULT_OUT = HERE / "index.html"
 SQL_DIR = HERE.parent / "sql"
 
@@ -270,6 +277,75 @@ td.nil{color:var(--grey2)}
 .b3{fill:var(--red)} .b4{fill:var(--blue-d)}
 .f-shape{fill:var(--blue)}
 .f-line{stroke:var(--line);stroke-width:1}
+.s-note{font-family:var(--sans);font-size:10.5px;fill:var(--grey2)}
+.s-head{font-family:var(--sans);font-size:11.5px;font-weight:600;fill:var(--ink)}
+
+/* ---------------- what ran ---------------- */
+/* One pill per object kind. The colours are the same four the rest of the
+   page uses, so nothing new enters the palette. */
+.pill{
+  display:inline-block; font-family:var(--mono); font-size:10px;
+  letter-spacing:.5px; text-transform:uppercase; padding:1px 7px;
+  border-radius:100px; border:1px solid var(--line);
+  background:var(--chip-bg); color:var(--chip-ink);
+  white-space:nowrap; text-align:center; justify-self:start;
+}
+.pill.p-table{border-color:var(--blue);color:var(--blue-d);background:transparent}
+.pill.p-view{border-color:var(--green);color:var(--green-d);background:transparent}
+.pill.p-routine{border-color:var(--fn);color:var(--fn);background:transparent}
+.pill.p-index{border-color:var(--yellow-d);color:var(--yellow-d);background:transparent}
+.pill.p-assert{border-color:var(--red);color:var(--red-d);background:transparent}
+.pill.p-external{border-color:var(--blue);color:var(--grey);background:transparent}
+
+.steplist{list-style:none;counter-reset:step;border:1px solid var(--line);
+  border-radius:10px;background:var(--panel);overflow:hidden}
+.steplist li{
+  counter-increment:step;
+  display:grid;grid-template-columns:28px 74px minmax(108px,auto) minmax(0,1fr) auto;
+  gap:12px;align-items:baseline;padding:7px 16px;
+  border-bottom:1px solid var(--line);
+}
+.steplist li:last-child{border-bottom:none}
+.steplist li:nth-child(even){background:var(--soft)}
+.steplist li::before{content:counter(step);font-family:var(--mono);
+  font-size:11.5px;color:var(--grey2);text-align:right}
+.steplist .op{font-size:12.5px;color:var(--grey)}
+.steplist .obj{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.steplist .rows{font-family:var(--mono);font-size:12px;text-align:right;
+  white-space:nowrap;color:var(--ink)}
+.steplist .rows.nr{color:var(--grey2)}
+
+/* ---------------- before and after ---------------- */
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.bacol{border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  overflow:hidden}
+.bahead{display:flex;align-items:baseline;gap:10px;padding:9px 16px;
+  background:var(--soft);border-bottom:1px solid var(--line)}
+.bahead .t{font-size:12.5px;font-weight:600}
+.bahead .c{font-size:11.5px;color:var(--grey2);font-family:var(--mono);
+  margin-left:auto;white-space:nowrap}
+.barow{display:grid;grid-template-columns:minmax(0,1fr) auto 72px;gap:12px;
+  align-items:baseline;padding:6px 16px;border-bottom:1px solid var(--line)}
+.barow:last-of-type{border-bottom:none}
+.barow .o{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.barow .r{font-family:var(--mono);font-size:12px;text-align:right;white-space:nowrap}
+.barow .r.nr{color:var(--grey2);font-size:11.5px}
+.barow .b{font-family:var(--mono);font-size:11.5px;color:var(--grey2);
+  text-align:right;white-space:nowrap}
+.batot{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:9px 16px;border-top:2px solid var(--line);background:var(--soft);
+  font-size:12.5px;font-weight:600}
+.batot .n{font-family:var(--mono);white-space:nowrap}
+.banone{padding:14px 16px;font-size:12.5px;color:var(--grey2);line-height:1.5}
+.badelta,.stepnote{margin-top:12px;font-size:12.5px;color:var(--grey)}
+.badelta .n{font-family:var(--mono);color:var(--ink)}
+
+@media (max-width:980px){
+  .ba{grid-template-columns:1fr}
+  .steplist li{grid-template-columns:24px 70px minmax(0,1fr);row-gap:2px}
+  .steplist li .obj{grid-column:2 / span 2}
+  .steplist li .rows{grid-column:3;text-align:left}
+}
 
 .foot{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
   font-size:12px;color:var(--grey2);display:flex;gap:18px;flex-wrap:wrap}
@@ -663,6 +739,235 @@ function chartFor(res){
 """
 
 JS += r"""
+/* ---------- what actually ran, and the volumes either side ---------------
+   Everything below is driven by steps.json. When that file was not supplied
+   s.run is undefined and DATA.funnel is empty, every builder returns null,
+   and the page renders exactly as it did before. */
+
+var KIND_WORD = {
+  table: 'table', view: 'view', routine: 'routine', index: 'index',
+  assert: 'assert', schema: 'schema', temp: 'temp', external: 'external'
+};
+function pill(kind){
+  var k = String(kind === null || kind === undefined ? '' : kind).toLowerCase();
+  var safe = k.replace(/[^a-z0-9]+/g, '-');
+  return el('span', 'pill' + (safe ? ' p-' + safe : ''), KIND_WORD[k] || (k || 'step'));
+}
+function plural(n, word){
+  return fmt(n) + ' ' + word + (numOf(n) === 1 ? '' : 's');
+}
+
+/* A view or an external table carries no storage statistics in BigQuery, so
+   its zeroes mean "not reported", not "empty". Say so rather than print a 0
+   the reader would take at face value. */
+function reportsVolume(o){
+  if (!o) return false;
+  if (o.kind === 'view' || o.kind === 'external') return false;
+  return o.rows !== null && o.rows !== undefined;
+}
+function bytesH(b){
+  var n = numOf(b);
+  if (b === null || b === undefined || !isFinite(n) || n <= 0) return '\u2014';
+  var u = ['B', 'KB', 'MB', 'GB', 'TB'], i = 0;
+  while (n >= 1024 && i < u.length - 1){ n = n / 1024; i++; }
+  return (i === 0 ? String(Math.round(n)) : n.toFixed(n < 10 ? 1 : 0)) + ' ' + u[i];
+}
+
+function whatRan(s){
+  var run = s.run;
+  if (!run || !(run.steps || []).length) return null;
+  var steps = run.steps;
+  var n = (run.statements === null || run.statements === undefined) ? steps.length : run.statements;
+
+  var sec = el('div', 'sec');
+  var h = el('div', 'sec-h');
+  h.appendChild(el('h3', null, 'What ran'));
+  h.appendChild(el('span', 'count',
+    fmt(n) + (numOf(n) === 1 ? ' statement executed' : ' statements executed')
+    + ' in BigQuery, in this order'));
+  sec.appendChild(h);
+
+  var ol = el('ol', 'steplist');
+  steps.forEach(function(st){
+    var li = el('li');
+    li.appendChild(pill(st.kind));
+    li.appendChild(el('span', 'op', st.op));
+    li.appendChild(el('span', 'obj', st.object));
+    var r = el('span', 'rows');
+    if (st.rows === null || st.rows === undefined){
+      r.className = 'rows nr';
+      r.textContent = '\u2014';
+    } else {
+      r.textContent = fmt(st.rows) + ' rows';
+    }
+    li.appendChild(r);
+    ol.appendChild(li);
+  });
+  sec.appendChild(ol);
+  sec.appendChild(el('div', 'note stepnote',
+    'Row counts are what the object holds now, read from BigQuery metadata rather than '
+    + 'from the script. A dash means the object has no row count of its own: routines, '
+    + 'indexes, schemas and assertions never do, and views and external tables do not '
+    + 'report one.'));
+  return sec;
+}
+
+function rowTotals(items){
+  var t = { rows: 0, quiet: 0, objects: items.length };
+  items.forEach(function(o){
+    if (reportsVolume(o)) t.rows += numOf(o.rows); else t.quiet++;
+  });
+  return t;
+}
+function volumeColumn(title, items, totals, emptyText){
+  var c = el('div', 'bacol');
+  var h = el('div', 'bahead');
+  h.appendChild(el('span', 't', title));
+  h.appendChild(el('span', 'c', items.length ? plural(items.length, 'object') : 'none'));
+  c.appendChild(h);
+  if (!items.length){
+    c.appendChild(el('div', 'banone', emptyText));
+    return c;
+  }
+  items.forEach(function(o){
+    var r = el('div', 'barow');
+    r.appendChild(el('span', 'o', o.object));
+    var known = reportsVolume(o);
+    var rv = el('span', known ? 'r' : 'r nr', known ? fmt(o.rows) + ' rows' : 'not reported');
+    r.appendChild(rv);
+    r.appendChild(el('span', 'b', known ? bytesH(o.bytes) : '\u2014'));
+    c.appendChild(r);
+  });
+  var t = el('div', 'batot');
+  t.appendChild(el('span', null, 'Total'));
+  t.appendChild(el('span', 'n', fmt(totals.rows) + ' rows'
+    + (totals.quiet ? ' \u00b7 ' + totals.quiet + ' not reported' : '')));
+  c.appendChild(t);
+  return c;
+}
+
+function beforeAfter(s){
+  var run = s.run;
+  if (!run) return null;
+  var ins = run.inputs || [], outs = run.outputs || [];
+
+  var sec = el('div', 'sec');
+  var h = el('div', 'sec-h');
+  h.appendChild(el('h3', null, 'Before and after'));
+  h.appendChild(el('span', 'count', 'what the stage read, and what it left behind'));
+  sec.appendChild(h);
+
+  if (!ins.length && !outs.length){
+    sec.appendChild(el('div', 'err',
+      'This stage reads no table and leaves no table behind. Everything it creates is '
+      + 'listed above \u2014 datasets and routines, which hold no rows of their own.'));
+    return sec;
+  }
+
+  var ti = rowTotals(ins), to = rowTotals(outs);
+  var g = el('div', 'ba');
+  g.appendChild(volumeColumn('Before \u00b7 read by this stage', ins, ti,
+    'Nothing. This stage reads no existing table in the warehouse \u2014 it builds its '
+    + 'objects from scratch, or loads them from files in Cloud Storage.'));
+  g.appendChild(volumeColumn('After \u00b7 written by this stage', outs, to,
+    'Nothing queryable. This stage leaves behind no table or view of its own.'));
+  sec.appendChild(g);
+
+  var d = el('div', 'badelta');
+  d.appendChild(document.createTextNode('Read '));
+  d.appendChild(el('span', 'n', fmt(ti.rows) + ' rows'));
+  d.appendChild(document.createTextNode(' across ' + plural(ti.objects, 'object') + ', wrote '));
+  d.appendChild(el('span', 'n', fmt(to.rows) + ' rows'));
+  d.appendChild(document.createTextNode(' across ' + plural(to.objects, 'object') + '.'));
+  if (ti.quiet + to.quiet){
+    d.appendChild(document.createTextNode(' ' + (ti.quiet + to.quiet)
+      + ' of those are views or external tables, which report no row count in BigQuery '
+      + 'and are left out of the totals.'));
+  }
+  sec.appendChild(d);
+  return sec;
+}
+
+/* ---------- hand-rolled SVG: log-scaled pipeline bars ---------- */
+/* The largest step is ~10.7M and the smallest a few thousand, so linear bar
+   lengths would draw the tail as nothing at all. Lengths are log10, the axis
+   starts at the round decade below the smallest value, and every bar carries
+   its exact number so nothing rests on reading a length. */
+function logFloor(items){
+  var min = Infinity;
+  items.forEach(function(it){
+    var v = numOf(it.value);
+    if (isFinite(v) && v > 0 && v < min) min = v;
+  });
+  if (!isFinite(min) || min <= 0) return 1;
+  var b = Math.pow(10, Math.floor(Math.log(min) / Math.LN10));
+  return b > 0 ? b : 1;
+}
+function funnelBars(items, opts){
+  opts = opts || {};
+  var W = 760, RH = 54, TOP = 6, BAR = 15;
+  var H = TOP * 2 + items.length * RH;
+  var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img' });
+  svg.setAttribute('aria-label', 'pipeline funnel, bar lengths on a logarithmic scale');
+  var max = 0;
+  items.forEach(function(it){ var v = numOf(it.value); if (isFinite(v) && v > max) max = v; });
+  if (!(max > 0)) return svg;
+  var base = opts.base || logFloor(items);
+  if (base >= max) base = 1;
+  var span = (Math.log(max / base) / Math.LN10) || 1;
+  function width(v){
+    if (!(v > base)) return 4;
+    return Math.max(4, Math.round(W * ((Math.log(v / base) / Math.LN10) / span)));
+  }
+  items.forEach(function(it, i){
+    var y = TOP + i * RH;
+    var v = numOf(it.value); if (!isFinite(v)) v = 0;
+
+    var lbl = svgEl('text', { x: 0, y: y + 13, class: 's-head' });
+    lbl.textContent = it.label;
+    svg.appendChild(lbl);
+
+    var val = svgEl('text', { x: W, y: y + 13, 'text-anchor': 'end', class: 's-val' });
+    val.textContent = fmt(v);
+    svg.appendChild(val);
+
+    svg.appendChild(svgEl('rect', { x: 0, y: y + 20, width: W, height: BAR, rx: 3, class: 's-track' }));
+    svg.appendChild(svgEl('rect', { x: 0, y: y + 20, width: width(v), height: BAR, rx: 3, class: 'b0' }));
+
+    if (it.note){
+      var nt = svgEl('text', { x: 0, y: y + 47, class: 's-note' });
+      nt.textContent = it.note;
+      svg.appendChild(nt);
+    }
+  });
+  return svg;
+}
+function pipelineFunnelSection(){
+  var items = (DATA.funnel || []).filter(function(it){ return it && isNum(it.value); });
+  if (items.length < 2) return null;
+  var base = logFloor(items), max = 0, min = Infinity;
+  items.forEach(function(it){
+    var v = numOf(it.value);
+    if (v > max) max = v;
+    if (v < min) min = v;
+  });
+  var sec = el('div', 'sec');
+  var h = el('div', 'sec-h');
+  h.appendChild(el('h3', null, 'The pipeline, end to end'));
+  h.appendChild(el('span', 'badge', 'log scale'));
+  h.appendChild(el('span', 'count', items.length + ' checkpoints, in pipeline order'));
+  sec.appendChild(h);
+  sec.appendChild(vizBox(null, funnelBars(items, { base: base }),
+    'Bar lengths are LOGARITHMIC, not linear. The largest step is ' + fmt(max)
+    + ' and the smallest is ' + fmt(min) + ' \u2014 on a linear axis the tail would draw as '
+    + 'nothing. Lengths are log10 from an axis starting at ' + fmt(base)
+    + ', so read the printed numbers, not the lengths. Source: steps.json, extracted '
+    + 'from the run.'));
+  return sec;
+}
+"""
+
+JS += r"""
 /* ---------- overview ---------- */
 function statCard(k, v, foot, tone, small){
   var c = el('div', 'card hero' + (tone ? ' ' + tone : ''));
@@ -742,6 +1047,10 @@ function renderOverview(main){
     }
     w.appendChild(s);
   }
+
+  /* end-to-end pipeline funnel, straight from steps.json */
+  var pf = pipelineFunnelSection();
+  if (pf) w.appendChild(pf);
 
   /* funnel, assembled only from figures that are actually present */
   var bf = row0('40_block', 'v_blocking_funnel');
@@ -869,6 +1178,12 @@ function renderStage(main, idx){
     sec.appendChild(box);
     w.appendChild(sec);
   }
+
+  /* what actually ran, then the volumes either side of it (steps.json) */
+  var ran = whatRan(s);
+  if (ran) w.appendChild(ran);
+  var ba = beforeAfter(s);
+  if (ba) w.appendChild(ba);
 
   /* results */
   var results = s.results || [];
@@ -1121,6 +1436,81 @@ def load(results_path: Path) -> dict:
     return data
 
 
+def _kind_catalogue(step_stages: list) -> dict:
+    """object name -> kind, learnt from the statements that created it.
+
+    steps.json records an external table as kind "table" because that is what
+    BigQuery calls it, but an external table reports neither rows nor bytes.
+    Reading the operation back tells the two apart, which is what stops the
+    page printing an authoritative "0 rows" for something that simply never
+    reports one.
+    """
+    cat: dict = {}
+    for stage in step_stages:
+        for step in stage.get("steps") or []:
+            obj = str(step.get("object") or "")
+            if not obj:
+                continue
+            kind = str(step.get("kind") or "")
+            if "external" in str(step.get("op") or "").lower():
+                kind = "external"
+            cat.setdefault(obj, kind)
+    return cat
+
+
+def attach_steps(data: dict, steps_path: Path | None) -> bool:
+    """Fold steps.json into the payload. Absent or unreadable -> no-op.
+
+    Returns True when the run detail was attached. The page is designed to
+    build without it, so a missing file is a warning, never an error.
+    """
+    if steps_path is None or not Path(steps_path).is_file():
+        return False
+    try:
+        with Path(steps_path).open(encoding="utf-8") as fh:
+            steps_data = json.load(fh)
+    except (OSError, ValueError) as exc:
+        print(f"warning: {steps_path} could not be read ({exc}); "
+              "building without the run detail.", file=sys.stderr)
+        return False
+    if not isinstance(steps_data, dict):
+        print(f"warning: {steps_path} is not an object; building without the run detail.",
+              file=sys.stderr)
+        return False
+
+    step_stages = [s for s in (steps_data.get("stages") or []) if isinstance(s, dict)]
+    cat = _kind_catalogue(step_stages)
+    by_id = {str(s.get("id", "")): s for s in step_stages}
+
+    attached = 0
+    for stage in data["stages"]:
+        src = by_id.get(str(stage.get("id", "")))
+        if not src:
+            continue
+        run = {
+            "statements": src.get("statements"),
+            "steps": [s for s in (src.get("steps") or []) if isinstance(s, dict)],
+            "inputs": [o for o in (src.get("inputs") or []) if isinstance(o, dict)],
+            "outputs": [o for o in (src.get("outputs") or []) if isinstance(o, dict)],
+        }
+        for side in ("inputs", "outputs"):
+            for obj in run[side]:
+                obj.setdefault("kind", cat.get(str(obj.get("object") or ""), ""))
+        stage["run"] = run
+        attached += 1
+
+    funnel = [f for f in (steps_data.get("funnel") or [])
+              if isinstance(f, dict) and f.get("value") is not None]
+    if funnel:
+        data["funnel"] = funnel
+
+    if not attached and not funnel:
+        print(f"warning: {steps_path} matched no stage; building without the run detail.",
+              file=sys.stderr)
+        return False
+    return True
+
+
 def build(data: dict) -> str:
     project = str(data.get("project", ""))
     dataset = str(data.get("dataset", ""))
@@ -1146,6 +1536,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--results", type=Path, default=DEFAULT_RESULTS,
                     help=f"extract_results.py output (default: {DEFAULT_RESULTS})")
+    ap.add_argument("--steps", type=Path, default=DEFAULT_STEPS,
+                    help=f"extract_steps.py output; optional (default: {DEFAULT_STEPS})")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT,
                     help=f"HTML file to write (default: {DEFAULT_OUT})")
     args = ap.parse_args(argv)
@@ -1155,13 +1547,23 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     data = load(args.results)
+    ran = attach_steps(data, args.steps)
+    if not ran and args.steps is not None and not Path(args.steps).is_file():
+        print(f"note: {args.steps} not found -- building without 'What ran', "
+              "'Before and after' and the pipeline funnel. Run extract_steps.py "
+              "to include them.", file=sys.stderr)
     html = build(data)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(html, encoding="utf-8")
 
     views = sum(len(s.get("results", [])) for s in data["stages"])
     kb = args.out.stat().st_size / 1024
-    print(f"wrote {args.out}  ({kb:,.0f} KB, {len(data['stages'])} stages, {views} views, no external references)")
+    detail = ""
+    if ran:
+        stmts = sum(int(s.get("run", {}).get("statements") or 0) for s in data["stages"])
+        detail = f", {stmts} statements, {len(data.get('funnel') or [])} funnel steps"
+    print(f"wrote {args.out}  ({kb:,.0f} KB, {len(data['stages'])} stages, "
+          f"{views} views{detail}, no external references)")
     return 0
 
 
