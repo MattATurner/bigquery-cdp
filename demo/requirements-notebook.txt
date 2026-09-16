@@ -1,0 +1,35 @@
+# Dependencies for demo/notebook.ipynb — the single-customer walkthrough.
+#
+# The notebook uses native %%bigquery cell magics rather than shelling out to
+# the bq CLI, so it needs the BigQuery python client and the magics package.
+#
+#   uv venv demo/.venv-nb
+#   uv pip install --python demo/.venv-nb/bin/python -r demo/requirements-notebook.txt
+#
+# Then point Jupyter at demo/.venv-nb, or run it headless:
+#   .venv-nb/bin/python -m nbconvert --to notebook --execute notebook.ipynb
+#
+# Auth is Application Default Credentials. If the python client cannot
+# authenticate:  gcloud auth application-default login
+
+# The magics themselves. NOT `%load_ext google.cloud.bigquery` -- that path is
+# deprecated and prints a FutureWarning mid-demo.
+bigquery-magics
+
+google-cloud-bigquery
+
+# Required by the magic's default fast path. Without both, every cell fails
+# with "The default BigQuery Storage API client cannot be used".
+google-cloud-bigquery-storage
+pyarrow
+
+# Results are returned as DataFrames; db-dtypes covers BigQuery DATE/TIME types.
+pandas
+db-dtypes
+
+# Without tqdm the client still works but warns on every query.
+tqdm
+
+# Kernel, and headless execution for verification.
+ipykernel
+nbconvert

@@ -11,7 +11,7 @@ demo/.rendered/
 # Python
 __pycache__/
 *.pyc
-.venv/
+.venv*/
 venv/
 
 # Notebook output
