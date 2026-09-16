@@ -41,8 +41,8 @@ SELECT
 FROM `${CDP_PROJECT}.${CDP_DS}.party_records` AS p
 JOIN `${CDP_PROJECT}.${CDP_DS}.person_assignment` AS a ON a.record_id = p.record_id,
 UNNEST([
-  STRUCT('forename' AS field, p.forename_norm AS value_norm, p.forename_norm AS value_raw),
-  STRUCT('surname',           p.surname_norm,                p.surname_norm),
+  STRUCT('forename' AS field, p.forename_norm AS value_norm, COALESCE(NULLIF(p.raw_forename, ''), REGEXP_EXTRACT(p.raw_name, r'^\S+'), p.forename_norm) AS value_raw),
+  STRUCT('surname',           p.surname_norm,                COALESCE(NULLIF(p.raw_surname, ''),  REGEXP_EXTRACT(p.raw_name, r'\S+$'), p.surname_norm)),
   STRUCT('full_name',         p.name_norm,                   p.raw_name),
   STRUCT('address',           p.address_norm,                p.raw_address),
   STRUCT('city',              UPPER(p.raw_city),             p.raw_city),
@@ -152,29 +152,51 @@ WHERE r.rn = 1;
 CREATE OR REPLACE TABLE `${CDP_PROJECT}.${CDP_DS}.golden_person`
 CLUSTER BY person_id
 AS
+WITH pivoted AS (
+  SELECT
+    np.person_id,
+    MAX(IF(s.field = 'full_name',      s.surviving_value,     NULL)) AS full_name,
+    MAX(IF(s.field = 'forename',       s.surviving_value,     NULL)) AS forename,
+    MAX(IF(s.field = 'surname',        s.surviving_value,     NULL)) AS surname,
+    MAX(IF(s.field = 'address',        s.surviving_value,     NULL)) AS address,
+    MAX(IF(s.field = 'address',        s.won_from_record_id,  NULL)) AS address_record_id,
+    MAX(IF(s.field = 'city',           s.surviving_value,     NULL)) AS field_city,
+    MAX(IF(s.field = 'postcode',       s.surviving_value,     NULL)) AS field_postcode,
+    MAX(IF(s.field = 'email',          s.surviving_value,     NULL)) AS email,
+    MAX(IF(s.field = 'phone',          s.surviving_value,     NULL)) AS phone,
+    SAFE.PARSE_DATE('%Y-%m-%d',
+      MAX(IF(s.field = 'dob',          s.surviving_value,     NULL))) AS dob,
+    MAX(IF(s.field = 'account_number', s.surviving_value,     NULL)) AS account_number,
+    COUNTIF(s.was_contested)                                         AS contested_fields,
+    COUNT(s.field)                                                   AS populated_fields,
+    MAX(s.source_trust)                                              AS best_source_trust,
+    MAX(s.asserted_at)                                               AS most_recent_assertion
+  FROM `${CDP_PROJECT}.${CDP_DS}.node_person` AS np
+  LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.field_survivorship` AS s
+    ON s.person_id = np.person_id
+  GROUP BY np.person_id
+)
 SELECT
-  s.person_id,
-  MAX(IF(field = 'full_name',      surviving_value, NULL)) AS full_name,
-  MAX(IF(field = 'forename',       surviving_value, NULL)) AS forename,
-  MAX(IF(field = 'surname',        surviving_value, NULL)) AS surname,
-  MAX(IF(field = 'address',        surviving_value, NULL)) AS address,
-  MAX(IF(field = 'city',           surviving_value, NULL)) AS city,
-  MAX(IF(field = 'postcode',       surviving_value, NULL)) AS postcode,
-  MAX(IF(field = 'email',          surviving_value, NULL)) AS email,
-  MAX(IF(field = 'phone',          surviving_value, NULL)) AS phone,
-  SAFE.PARSE_DATE('%Y-%m-%d',
-    MAX(IF(field = 'dob',          surviving_value, NULL))) AS dob,
-  MAX(IF(field = 'account_number', surviving_value, NULL)) AS account_number,
-
-  -- How much of this profile was argued over. A high number is not a
-  -- problem in itself — it means the sources genuinely disagreed and the
-  -- rules did their job — but it is a useful steward triage signal.
-  COUNTIF(was_contested)                                   AS contested_fields,
-  COUNT(*)                                                 AS populated_fields,
-  MAX(source_trust)                                        AS best_source_trust,
-  MAX(asserted_at)                                         AS most_recent_assertion
-FROM `${CDP_PROJECT}.${CDP_DS}.field_survivorship` AS s
-GROUP BY s.person_id;
+  p.person_id,
+  p.full_name,
+  p.forename,
+  p.surname,
+  p.address,
+  -- Keep address components as a coherent tuple from the winning address record
+  -- to prevent Chimera/Frankenstein addresses across cities/states.
+  COALESCE(addr_rec.raw_city,     p.field_city)     AS city,
+  COALESCE(addr_rec.raw_postcode, p.field_postcode) AS postcode,
+  p.email,
+  p.phone,
+  p.dob,
+  p.account_number,
+  p.contested_fields,
+  p.populated_fields,
+  p.best_source_trust,
+  p.most_recent_assertion
+FROM pivoted AS p
+LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.party_records` AS addr_rec
+  ON addr_rec.record_id = p.address_record_id;
 
 
 -- ---------------------------------------------------------------------

@@ -91,6 +91,7 @@ WITH outstanding AS (
         AND j.record_id_b    = t.record_id_b
         AND j.model          = '${CDP_ADJUDICATOR_MODEL}'
         AND j.prompt_version = '${CDP_PROMPT_VERSION}'
+        AND IFNULL(j.raw_status, '') = ''
     )
   -- Highest-value uncertainty first, so a cap truncates the least
   -- interesting tail rather than an arbitrary slice.
@@ -282,7 +283,7 @@ FROM (
     j.*,
     ROW_NUMBER() OVER (
       PARTITION BY record_id_a, record_id_b
-      ORDER BY adjudicated_at DESC
+      ORDER BY IFNULL(raw_status, '') = '' DESC, adjudicated_at DESC
     ) AS rn
   FROM `${CDP_PROJECT}.${CDP_DS}.adjudications` AS j
   WHERE model = '${CDP_ADJUDICATOR_MODEL}'
@@ -330,8 +331,6 @@ SELECT
   CASE
     WHEN j.verdict = 'MATCH' AND j.confidence >= ${CDP_ACCEPT_CONFIDENCE}  THEN 'LINK'
     WHEN j.verdict = 'MATCH' AND j.confidence >= ${CDP_STEWARD_CONFIDENCE} THEN 'STEWARD'
-    WHEN j.verdict = 'UNCERTAIN'
-         AND j.confidence >= ${CDP_STEWARD_CONFIDENCE}                     THEN 'STEWARD'
     WHEN j.verdict = 'UNCERTAIN'                                           THEN 'STEWARD'
     ELSE 'NO_LINK'
   END                                       AS decision,

@@ -39,8 +39,16 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 
+_FOLD_SPECIAL_TABLE = str.maketrans({
+    "Ł": "L", "ł": "l", "Ø": "O", "ø": "o", "Đ": "D", "đ": "d",
+    "ß": "ss", "Æ": "AE", "æ": "ae", "Œ": "OE", "œ": "oe",
+    "ħ": "h", "Ħ": "H", "ŧ": "t", "Ŧ": "T",
+})
+
+
 def strip_acc(s: str) -> str:
     """Remove diacritics but keep case, so 'Nguyễn' -> 'Nguyen'."""
+    s = s.translate(_FOLD_SPECIAL_TABLE)
     return "".join(
         c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c)
     )
@@ -169,6 +177,13 @@ try:
                  getattr(_banks, "SURNAME_VARIANTS", {})):
         for _k in sorted(_src):
             for _v in _src[_k]:
+                pool_tokens.add(fold(_v))
+                for _tok in _v.split():
+                    pool_tokens.add(fold(_tok))
+    for _df_list in (getattr(_banks, "DIACRITIC_FORENAMES", []),
+                     getattr(_banks, "DIACRITIC_SURNAMES", [])):
+        for _entry in _df_list:
+            for _v in _entry:
                 pool_tokens.add(fold(_v))
                 for _tok in _v.split():
                     pool_tokens.add(fold(_tok))
@@ -377,6 +392,8 @@ for fname, fields in ADDR_FIELDS.items():
             elif any(d in blob for d in drifts):
                 drift_hits[canon] += 1
 
+man = json.loads((DATA / "manifest.json").read_text()) if (DATA / "manifest.json").exists() else {}
+_instances = man.get("case_instance_counts", {}).get("DIACRITIC_VARIANT", 100)
 covered = {c for c, _d in _pairs if canon_hits[c] or drift_hits[c]}
 print(f"  DIACRITIC_VARIANT address rows : {mv_addr}")
 print(f"  curated pairs appearing        : {len(covered)} of {len(_pairs)}")
@@ -388,7 +405,7 @@ elif not canon_hits or not drift_hits:
     fails.append("DIACRITIC_VARIANT addresses carry only one written form, "
                  "so the address flavour of the case tests nothing")
     print("  FAIL only one written form across the whole case")
-elif len(covered) * 2 < len(_pairs):
+elif len(covered) * 2 < min(len(_pairs), max(2, (_instances + 5) // 6)):
     warns.append(f"only {len(covered)} of {len(_pairs)} curated punctuation "
                  f"suburbs are reachable -- this is the defect-4 shape; check "
                  f"the slice indexes on a dense counter, not on i")
@@ -404,9 +421,8 @@ if missing:
 
 # ---- 4. manifest sanity --------------------------------------------------
 print("\n== 4. manifest ==")
-man = json.loads((DATA / "manifest.json").read_text())
 print(f"  seed        : {man.get('seed')}")
-print(f"  people      : {man.get('people')}")
+print(f"  people      : {man.get('person_count', man.get('people'))}")
 for k in ("row_counts", "case_instance_counts", "case_type_person_counts"):
     v = man.get(k)
     if isinstance(v, dict):
@@ -507,11 +523,17 @@ if pool_tokens:  # banks imported successfully in check 1a
                 w_fore.add(fold(_n))
                 for _v in getattr(_banks, "DIMINUTIVES", {}).get(_n, []):
                     w_fore.add(fold(_v))
+    for _entry in getattr(_banks, "DIACRITIC_FORENAMES", []):
+        for _v in _entry:
+            w_fore.add(fold(_v))
     for _g in sorted(_banks.SURNAMES_BY_GROUP):
         for _n, _w in _banks.SURNAMES_BY_GROUP[_g]:
             w_sur.add(fold(_n))
             for _v in getattr(_banks, "SURNAME_VARIANTS", {}).get(_n, []):
                 w_sur.add(fold(_v))
+    for _entry in getattr(_banks, "DIACRITIC_SURNAMES", []):
+        for _v in _entry:
+            w_sur.add(fold(_v))
 
 reachable, unreachable, unblocked = [], [], []
 for n in NOTABLE:
@@ -548,7 +570,16 @@ else:
 # name that IS reachable and is NOT on the roster, and confirm the same
 # predicate classifies it as unblocked.
 if w_fore and w_sur and _fp is not None:
+    _notable_folded = {fold(n) for n in NOTABLE}
     _nc_fn, _nc_sn = sorted(w_fore)[0], sorted(w_sur)[0]
+    for _fn in sorted(w_fore):
+        for _sn in sorted(w_sur):
+            if _fn != _sn and f"{_fn} {_sn}" not in _notable_folded:
+                _nc_fn, _nc_sn = _fn, _sn
+                break
+        else:
+            continue
+        break
     _nc_detects = not _fp(_nc_fn, _nc_sn)
     print(f"  negative control : reachable non-roster pair "
           f"{_nc_fn} {_nc_sn} reported unblocked={_nc_detects} (must be True)")

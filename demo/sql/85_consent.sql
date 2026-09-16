@@ -49,7 +49,9 @@ FROM (
     e.consent_id,
     ROW_NUMBER() OVER (
       PARTITION BY e.record_id, e.channel, e.purpose
-      ORDER BY e.captured_at DESC, e.consent_id
+      ORDER BY e.captured_at DESC,
+               CASE e.status WHEN 'WITHDRAWN' THEN 1 WHEN 'NOT_GIVEN' THEN 2 ELSE 3 END,
+               e.consent_id
     ) AS rn
   FROM `${CDP_PROJECT}.${CDP_DS}.src_consent_events` AS e
 )
@@ -91,7 +93,7 @@ GROUP BY a.person_id;
 CREATE OR REPLACE TABLE `${CDP_PROJECT}.${CDP_DS}.person_consent`
 CLUSTER BY person_id, channel
 AS
-WITH per_person AS (
+WITH per_person_raw AS (
   SELECT
     a.person_id,
     c.channel,
@@ -110,6 +112,40 @@ WITH per_person AS (
   FROM `${CDP_PROJECT}.${CDP_DS}.consent_record_state` AS c
   JOIN `${CDP_PROJECT}.${CDP_DS}.person_assignment` AS a ON a.record_id = c.record_id
   GROUP BY a.person_id, c.channel, c.purpose
+),
+-- Ensure suppressed persons appear on every marketing channel even if they
+-- have no explicit consent events recorded.
+suppressed_channels AS (
+  SELECT
+    sp.person_id,
+    ch AS channel,
+    'MARKETING' AS purpose
+  FROM `${CDP_PROJECT}.${CDP_DS}.person_suppression` AS sp,
+  UNNEST(['EMAIL', 'SMS', 'POST', 'PHONE']) AS ch
+  WHERE sp.suppress_marketing
+),
+spine AS (
+  SELECT person_id, channel, purpose FROM per_person_raw
+  UNION DISTINCT
+  SELECT person_id, channel, purpose FROM suppressed_channels
+),
+per_person AS (
+  SELECT
+    s.person_id,
+    s.channel,
+    s.purpose,
+    IFNULL(r.contributing_records, 0) AS contributing_records,
+    IFNULL(r.any_withdrawn, FALSE)    AS any_withdrawn,
+    IFNULL(r.any_granted, FALSE)      AS any_granted,
+    IFNULL(r.all_granted, FALSE)      AS all_granted,
+    IFNULL(r.granted_count, 0)        AS granted_count,
+    IFNULL(r.withdrawn_count, 0)      AS withdrawn_count,
+    IFNULL(r.not_given_count, 0)      AS not_given_count,
+    r.first_withdrawn_at,
+    r.latest_event_at,
+    r.evidence
+  FROM spine AS s
+  LEFT JOIN per_person_raw AS r USING (person_id, channel, purpose)
 ),
 -- How many of a person's records could have carried a consent statement
 -- but do not. Under a strict reading, silence is not permission.
@@ -132,7 +168,7 @@ SELECT
   CASE
     WHEN IFNULL(sp.suppress_marketing, FALSE) AND p.purpose = 'MARKETING' THEN 'SUPPRESSED'
     WHEN p.any_withdrawn                                                  THEN 'WITHDRAWN'
-    WHEN p.all_granted                                                    THEN 'GRANTED'
+    WHEN p.all_granted AND p.contributing_records > 0                     THEN 'GRANTED'
     ELSE                                                                       'NOT_GIVEN'
   END                                        AS effective_status,
 
@@ -168,7 +204,7 @@ SELECT
       THEN CONCAT('Withdrawn on ', FORMAT_TIMESTAMP('%Y-%m-%d', p.first_withdrawn_at),
                   '. Withdrawal is absolute and is not overridden by a later grant '
                   'from another source.')
-    WHEN p.all_granted
+    WHEN p.all_granted AND p.contributing_records > 0
       THEN CONCAT('All ', CAST(p.contributing_records AS STRING),
                   ' contributing record(s) granted permission on this channel.')
     ELSE
@@ -263,4 +299,28 @@ SELECT
   g.postcode
 FROM `${CDP_PROJECT}.${CDP_DS}.person_consent` AS c
 JOIN `${CDP_PROJECT}.${CDP_DS}.golden_person` AS g USING (person_id)
-WHERE c.effective_status = 'GRANTED';
+LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.field_survivorship` AS fs
+  ON fs.person_id = c.person_id
+ AND fs.field = CASE c.channel
+                  WHEN 'EMAIL' THEN 'email'
+                  WHEN 'SMS'   THEN 'phone'
+                  WHEN 'PHONE' THEN 'phone'
+                  WHEN 'POST'  THEN 'address'
+                END
+LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.consent_record_state` AS crs
+  ON crs.record_id = fs.won_from_record_id
+ AND crs.channel   = c.channel
+ AND crs.purpose   = c.purpose
+WHERE c.effective_status = 'GRANTED'
+  -- Ensure the channel's contact attribute is populated on the golden record
+  AND CASE c.channel
+        WHEN 'EMAIL' THEN g.email    IS NOT NULL
+        WHEN 'SMS'   THEN g.phone    IS NOT NULL
+        WHEN 'PHONE' THEN g.phone    IS NOT NULL
+        WHEN 'POST'  THEN g.address  IS NOT NULL AND g.postcode IS NOT NULL
+        ELSE FALSE
+      END
+  -- Principle P7: Consent never travels across a merge. The specific source
+  -- record from which the surviving contact point was won must itself carry
+  -- GRANTED consent for this channel and purpose.
+  AND crs.status = 'GRANTED';

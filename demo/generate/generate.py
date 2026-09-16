@@ -390,7 +390,7 @@ class Address:
         if st:
             return st
         pc = (self.postcode or "").zfill(4)
-        if pc[:2] == "26" or pc[:2] == "02":
+        if pc[:2] in ("26", "02") or (pc.isdigit() and 2900 <= int(pc) <= 2920):
             return "ACT"
         return _POSTCODE_STATE.get(pc[:1], "NSW")
 
@@ -449,7 +449,7 @@ class Person:
         return f"{self.forename} {self.surname}"
 
     def age_on(self, ref: date = TODAY) -> int:
-        return (ref - self.dob).days // 365
+        return ref.year - self.dob.year - ((ref.month, ref.day) < (self.dob.month, self.dob.day))
 
 
 # ---------------------------------------------------------------------------
@@ -554,7 +554,11 @@ def drift_postcode(rng: random.Random, postcode: str, cfg: Corruption) -> str:
         # the first digit rather than passed in, so this stays a pure string
         # drift with no dependency on the address it came from.
         pc = postcode.zfill(4)
-        st = "ACT" if pc[:2] == "26" else _POSTCODE_STATE.get(pc[:1], "NSW")
+        st = (
+            "ACT"
+            if pc[:2] in ("26", "02") or (pc.isdigit() and 2900 <= int(pc) <= 2920)
+            else _POSTCODE_STATE.get(pc[:1], "NSW")
+        )
         return f"{st} {postcode}"
     return apply_typo(rng, postcode)
 
@@ -755,9 +759,12 @@ def drift_email(rng: random.Random, email: str, cfg: Corruption) -> str:
     )
     if mode == "plustag":
         return f"{local}+{rng.choice(banks.EMAIL_TAGS)}@{domain}"
-    if mode == "dots" and "." not in local and len(local) > 4:
-        i = rng.randrange(2, len(local) - 1)
-        return f"{local[:i]}.{local[i:]}@{domain}"
+    if mode == "dots":
+        if "." in local:
+            return f"{local.replace('.', '', 1)}@{domain}"
+        if len(local) > 4:
+            i = rng.randrange(2, len(local) - 1)
+            return f"{local[:i]}.{local[i:]}@{domain}"
     if mode == "undot":
         return f"{local.replace('.', '')}@{domain}"
     if mode == "domain":
@@ -1323,6 +1330,11 @@ class World:
 
         self._person_seq = 0
         self._household_seq = 0
+        self.suburb_locations: dict[str, tuple[str, str, str]] = {}
+        for _city_name, _std_code, _profile, _suburbs, _w in banks.CITIES:
+            for _sub_name, _pc_int in _suburbs:
+                if _sub_name not in self.suburb_locations:
+                    self.suburb_locations[_sub_name] = (_city_name, f"{_pc_int:04d}", _std_code)
 
     # -- ids -------------------------------------------------------------
     def next_person_id(self) -> str:
@@ -1615,7 +1627,7 @@ class World:
         if dob is None:
             lo, hi = age_range if age_range else wchoice(rng, _AGE_BANDS)
             age = rng.randrange(lo, hi + 1)
-            dob = date(TODAY.year - age, rng.randrange(1, 13), rng.randrange(1, 29))
+            dob = _dob_for_age(age, rng.randrange(1, 13), rng.randrange(1, 29))
         # Whether we are allowed to move this person. A case builder that pins
         # the address is doing so on purpose (siblings and households share
         # one), so that address must not be second-guessed below.
@@ -1911,6 +1923,8 @@ class Emitter:
         out = drift_email(rng, email, self.cfg)
         if out != email and not self.world.owns_email(out, p.pid):
             return email
+        if out != email:
+            self.world.claim_email(out, p.pid)
         return out
 
     def transcript_budget_spent(self) -> bool:
@@ -2720,7 +2734,7 @@ CONFUSABLE_FORENAMES: list[tuple[str, str, str]] = [
     # -- Filipino -------------------------------------------------------
     # "Rosa" is common in the Anglo pool too, so "Rosario" leads. Same for
     # "Renato" ahead of the more generic "Ricardo".
-    ("Ricardo", "Renato", "M"), ("Estela", "Estrella", "F"),
+    ("Renato", "Ricardo", "M"), ("Estela", "Estrella", "F"),
     ("Rosario", "Rosa", "F"),
 ]
 
@@ -2814,6 +2828,7 @@ class CaseBuilder:
             hid = self.w.next_household_id()
             addr = self.w.make_address(rng)
             fn_a, fn_b, gender = CONFUSABLE_FORENAMES[i % len(CONFUSABLE_FORENAMES)]
+            group = self.w.group_of_forename(fn_a)
             if i >= len(CONFUSABLE_FORENAMES):
                 fn_a, fn_b = fn_b, fn_a
             base_age = rng.randrange(21, 46)
@@ -2829,7 +2844,6 @@ class CaseBuilder:
             # in the same city already holds, producing two DO_NOT_MERGE people
             # with the same name, same city and near-identical ages: a question
             # the data cannot answer, which the scorecard would still mark.
-            group = self.w.group_of_forename(fn_a)
             surname = self.w.surname_for(rng, group, allow_cross=False)
             for _ in range(40):
                 if (
@@ -3111,11 +3125,11 @@ class CaseBuilder:
             business = " ".join(x for x in [stem, form, suffix] if x).strip()
             p.business_name = business
             domain_stem = _slug(stem) + _slug(form.split(" ")[0])
-            biz_email = f"info@{domain_stem[:28]}.co.uk"
+            biz_email = f"info@{domain_stem[:28]}.com.au"
             bump = 0
             while not self.w.owns_email(biz_email, p.pid):
                 bump += 1
-                biz_email = f"info@{domain_stem[:26]}{bump}.co.uk"
+                biz_email = f"info@{domain_stem[:26]}{bump}.com.au"
             p.business_email = self.w.claim_email(biz_email, p.pid)
             p.notes = (
                 f"SOLE_TRADER: {p.pid} trades as '{business}' from the home address "
@@ -3135,12 +3149,12 @@ class CaseBuilder:
                 self.em.support(
                     rng, p, case_type=case, contact_name=business,
                     contact_email=p.business_email,
-                    subject="VAT receipts for trade purchases",
+                    subject="GST receipts for trade purchases",
                     body=(
                         f"Hello,\n\nI'm a sole trader — I trade as {business} but the account "
                         f"is in my own name, {p.forename} {p.surname}. Both are at "
                         f"{p.addr.line1}, {p.addr.city}, {p.addr.postcode}.\n\n"
-                        f"I need VAT invoices for everything on loyalty card {p.account} for "
+                        f"I need tax invoices for everything on loyalty card {p.account} for "
                         "the last quarter, made out to the business rather than to me "
                         "personally. My accountant has been fairly clear about this.\n\n"
                         f"Best regards,\n{p.forename} {p.surname}\n{business}"
@@ -3591,8 +3605,10 @@ class CaseBuilder:
                 # loyalty file.
                 sub_canonical, sub_drifted = subs[addr_slice_n % len(subs)]
                 addr_slice_n += 1
-
-                addr = Address(addr.line1, sub_canonical, addr.city, addr.postcode, addr.std)
+                sub_city, sub_pc, sub_std = self.w.suburb_locations.get(
+                    sub_canonical, (addr.city, addr.postcode, addr.std)
+                )
+                addr = Address(addr.line1, sub_canonical, sub_city, sub_pc, sub_std)
             else:
                 sub_canonical = sub_drifted = addr.suburb
 
@@ -3749,9 +3765,9 @@ class CaseBuilder:
 
         This is the negative that NAME_ORDER sets up, and it is the reason
         NAME_ORDER cannot be solved with a rule that says "try it both ways
-        round and merge if either matches". ``Wei Chen`` of Papatoetoe, born
-        1974, and ``Chen Wei`` of Riccarton, born 1991, are not the same
-        person. Different DOB, different island, different everything except
+        round and merge if either matches". ``Wei Chen`` of Parramatta, born
+        1974, and ``Chen Wei`` of Box Hill, born 1991, are not the same
+        person. Different DOB, different state, different everything except
         the two tokens in the name.
 
         Both people are given a DOB on at least one record, because the DOB is

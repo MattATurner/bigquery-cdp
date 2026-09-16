@@ -87,9 +87,13 @@ fore_pool: set[str] = set()
 for d in (banks.MALE_FORENAMES_BY_GROUP, banks.FEMALE_FORENAMES_BY_GROUP):
     for _g, pool in d.items():
         fore_pool.update(n for n, _w in pool)
+for _entry in getattr(banks, "DIACRITIC_FORENAMES", []):
+    fore_pool.update(_entry)
 sur_pool: set[str] = set()
 for _g, pool in banks.SURNAMES_BY_GROUP.items():
     sur_pool.update(n for n, _w in pool)
+for _entry in getattr(banks, "DIACRITIC_SURNAMES", []):
+    sur_pool.update(_entry)
 
 # Everything the substitution layer can produce from a pool name.
 fore_forms: dict[str, set[str]] = {}

@@ -104,7 +104,7 @@ neg("lasting power of attorney (England & Wales only)",
 pos("enduring power of attorney, IN THE BANK (AU: state and territory "
     "Powers of Attorney Acts)", "enduring power of attorney", bank_src)
 neg("registered blind (UK local-authority concept)", "registered blind")
-pos("legally blind (the Australian term)", "legally blind")
+pos("legally blind (the Australian term)", "legally blind", bank_src)
 neg("form tutor (UK school role; AU says year adviser)", "form tutor")
 
 print()

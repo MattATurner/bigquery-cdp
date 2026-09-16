@@ -99,7 +99,7 @@ for line in body.splitlines():
             sys.exit(2)
         current, current_label = SECTION_TO_GROUPS[key], m.group(1).strip()
         continue
-    for fn_a, _fn_b, _gender in pair_re.findall(line):
+    for fn_a, _fn_b, _gender in pair_re.findall(line.split("#", 1)[0]):
         if current is None:
             print(f"pair before any section heading: {fn_a}")
             sys.exit(2)

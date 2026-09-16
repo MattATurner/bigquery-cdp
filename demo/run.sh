@@ -25,8 +25,8 @@ die()  { printf '  \033[31m✗\033[0m %s\n' "$1"; exit 1; }
 FROM=0; ONLY=""; DRY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --from)    FROM="$2"; shift 2 ;;
-    --only)    ONLY="$2"; shift 2 ;;
+    --from)    [[ $# -ge 2 ]] || die "Option --from requires a stage number"; FROM="$2"; shift 2 ;;
+    --only)    [[ $# -ge 2 ]] || die "Option --only requires a stage number"; ONLY="$2"; shift 2 ;;
     --dry-run) DRY=1; shift ;;
     -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     *) die "Unknown argument: $1" ;;
@@ -42,6 +42,7 @@ done
 set -a
 # shellcheck disable=SC1090
 source "${CONFIG}"
+CDP_LOCATION_LOWER="$(echo "${CDP_LOCATION:-}" | tr '[:upper:]' '[:lower:]')"
 set +a
 [[ -n "${CDP_PROJECT:-}" ]] || die "CDP_PROJECT is empty. Re-run ./setup.sh."
 
@@ -49,7 +50,7 @@ mkdir -p "${RENDER_DIR}" "${STATE_DIR}"
 
 # Every token a SQL file may reference. envsubst only substitutes these,
 # so stray shell-looking text in SQL is left alone.
-VARS='$CDP_PROJECT $CDP_LOCATION $CDP_DS $CDP_DS_TRUTH $CDP_BUCKET
+VARS='$CDP_PROJECT $CDP_LOCATION $CDP_LOCATION_LOWER $CDP_DS $CDP_DS_TRUTH $CDP_BUCKET
       $CDP_CONNECTION $CDP_CONNECTION_PATH $CDP_EMBEDDING_ENDPOINT
       $CDP_EXTRACTION_MODEL $CDP_ADJUDICATOR_MODEL $CDP_PROMPT_VERSION
       $CDP_TOPK $CDP_TAU_HI
@@ -63,8 +64,6 @@ VARS='$CDP_PROJECT $CDP_LOCATION $CDP_DS $CDP_DS_TRUTH $CDP_BUCKET
       $CDP_PRICE_ADJUDICATE_INPUT $CDP_PRICE_ADJUDICATE_OUTPUT
       $CDP_PRICE_BQ_PER_TIB $CDP_PRICE_BQ_SLOT_HOUR
       $CDP_PRICE_STORAGE_GIB_MONTH'
-
-TOTAL_BYTES=0
 
 run_sql() {
   local f="$1"
@@ -108,7 +107,7 @@ stage_num() { basename "$1" | grep -oE '^[0-9]+' ; }
 
 should_run() {
   local n; n="$(stage_num "$1")"
-  [[ -n "${ONLY}" ]] && { [[ "${n}" == "${ONLY}" ]] && return 0 || return 1; }
+  [[ -n "${ONLY}" ]] && { (( 10#${n} == 10#${ONLY} )) && return 0 || return 1; }
   (( 10#${n} >= 10#${FROM} ))
 }
 
@@ -231,7 +230,7 @@ echo "  bucket    gs://${CDP_BUCKET}"
 echo "  corpus    ${CDP_PEOPLE} people / ${CDP_RECORDS} records · seed ${CDP_SEED}"
 [[ "${DRY}" == "1" ]] && warn "DRY RUN — rendering only"
 
-: > "${STATE_DIR}/completed"
+[[ -z "${ONLY}" && "${FROM}" -eq 0 ]] && : > "${STATE_DIR}/completed"
 RUN_START=$(date +%s)
 
 # ---------------------------------------------------------------------

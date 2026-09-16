@@ -248,18 +248,19 @@ CREATE OR REPLACE FUNCTION `${CDP_PROJECT}.${CDP_DS}.postcode_outward`(s STRING)
 -- test.
 CREATE OR REPLACE FUNCTION `${CDP_PROJECT}.${CDP_DS}.norm_phone`(s STRING) AS (
   CASE
-    WHEN s IS NULL OR TRIM(s) = '' THEN NULL
+    WHEN s IS NULL OR LENGTH(REGEXP_REPLACE(s, r'\D', '')) < 6 THEN NULL
     -- Already international, but with the erroneous trunk zero retained.
     -- Drop the '0' sitting between the country code and the number.
-    WHEN STARTS_WITH(REGEXP_REPLACE(IFNULL(s, ''), r'\D', ''), '610')
+    WHEN STARTS_WITH(REGEXP_REPLACE(s, r'\D', ''), '610')
       THEN CONCAT('+61', SUBSTR(REGEXP_REPLACE(s, r'\D', ''), 4))
-    -- Already international and correctly formed.
-    WHEN STARTS_WITH(REGEXP_REPLACE(IFNULL(s, ''), r'\D', ''), '61')
+    -- Already international and correctly formed (11 digits: 61 + 9 digits).
+    WHEN STARTS_WITH(REGEXP_REPLACE(s, r'\D', ''), '61')
+         AND LENGTH(REGEXP_REPLACE(s, r'\D', '')) >= 11
       THEN CONCAT('+', REGEXP_REPLACE(s, r'\D', ''))
     -- Domestic form: drop the trunk zero.
-    WHEN STARTS_WITH(REGEXP_REPLACE(IFNULL(s, ''), r'\D', ''), '0')
+    WHEN STARTS_WITH(REGEXP_REPLACE(s, r'\D', ''), '0')
       THEN CONCAT('+61', SUBSTR(REGEXP_REPLACE(s, r'\D', ''), 2))
-    ELSE CONCAT('+61', REGEXP_REPLACE(IFNULL(s, ''), r'\D', ''))
+    ELSE CONCAT('+61', REGEXP_REPLACE(s, r'\D', ''))
   END
 );
 

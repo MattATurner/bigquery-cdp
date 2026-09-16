@@ -66,6 +66,10 @@ BEGIN
     SET i = i + 1;
   END WHILE;
 
+  EXECUTE IMMEDIATE FORMAT("""
+    DROP TABLE IF EXISTS `%s_next`
+  """, out_tbl);
+
   -- A run that exits on the iteration guard has NOT converged, and the
   -- resulting clusters are wrong. Fail rather than publish them.
   IF changed > 0 THEN
@@ -158,6 +162,7 @@ links AS (
     d.record_id_a,
     d.record_id_b,
     d.confidence,
+    t.a_dob, t.b_dob,
     t.acct_match, t.email_match, t.phone_match, t.dob_match, t.dob_conflict,
     t.combined_score
   FROM `${CDP_PROJECT}.${CDP_DS}.match_decisions` AS d
@@ -170,7 +175,11 @@ classified AS (
     l.*,
     (l.record_id_a IN (SELECT node FROM suspect_nodes)
      OR l.record_id_b IN (SELECT node FROM suspect_nodes))        AS in_suspect_component,
+    -- In a component already proven to contain conflicting dates of birth,
+    -- an edge involving a NULL DOB cannot be trusted as a strong bridge
+    -- between two different people. Require explicit DOB agreement.
     (NOT l.dob_conflict
+     AND l.a_dob IS NOT NULL AND l.b_dob IS NOT NULL
      AND (l.acct_match OR l.email_match OR l.phone_match OR l.dob_match
           OR l.combined_score >= 0.95))                           AS strong
   FROM links AS l
@@ -239,10 +248,13 @@ best AS (
   SELECT comp, person_id AS inherited_person_id
   FROM (
     SELECT comp, person_id,
-           ROW_NUMBER() OVER (PARTITION BY comp ORDER BY n DESC, person_id) AS rn
+           ROW_NUMBER() OVER (PARTITION BY comp ORDER BY n DESC, person_id)      AS rn_comp,
+           -- Ensure a historical person_id can be inherited by at most ONE
+           -- component, so that a split cluster does not re-merge downstream.
+           ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY n DESC, comp)      AS rn_person
     FROM inherited
   )
-  WHERE rn = 1
+  WHERE rn_comp = 1 AND rn_person = 1
 )
 SELECT
   m.comp,
@@ -251,7 +263,7 @@ SELECT
     b.inherited_person_id,
     -- Minted from the component anchor. Deterministic for a given run, and
     -- immediately persisted so it never needs to be derived again.
-    CONCAT('PER-', FORMAT('%016x', ABS(FARM_FINGERPRINT(m.comp))))
+    CONCAT('PER-', FORMAT('%016x', FARM_FINGERPRINT(m.comp) & 0x7fffffffffffffff))
   ) AS person_id,
   b.inherited_person_id IS NULL AS newly_minted
 FROM comp_members AS m

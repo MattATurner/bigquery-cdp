@@ -187,7 +187,7 @@ SELECT
                                                     AS usd_on_demand,
   ROUND(SUM(j.total_slot_ms) / 3600000.0 * p.usd_per_slot_hour, 4)
                                                     AS usd_enterprise_slots
-FROM `region-${CDP_LOCATION}`.INFORMATION_SCHEMA.JOBS_BY_PROJECT AS j
+FROM `region-${CDP_LOCATION_LOWER}`.INFORMATION_SCHEMA.JOBS_BY_PROJECT AS j
 CROSS JOIN `${CDP_PROJECT}.${CDP_DS}.ref_unit_prices` AS p
 CROSS JOIN run_start AS r
 WHERE j.creation_time >= r.t0

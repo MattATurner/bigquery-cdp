@@ -129,7 +129,7 @@ OPTIONS (analyzer = 'LOG_ANALYZER');
 
 CREATE OR REPLACE TABLE FUNCTION `${CDP_PROJECT}.${CDP_DS}.tf_lookup_hybrid`(probe STRING)
 AS (
-  SELECT 'HYBRID' AS retrieval_mode, s.*
+  SELECT 'HYBRID' AS retrieval_mode, s.base.* EXCEPT (match_embedding), s.distance
   FROM AI.SEARCH(
          TABLE `${CDP_PROJECT}.${CDP_DS}.party_search`,
          'match_key',
@@ -141,7 +141,7 @@ AS (
 
 CREATE OR REPLACE TABLE FUNCTION `${CDP_PROJECT}.${CDP_DS}.tf_lookup_vector`(probe STRING)
 AS (
-  SELECT 'VECTOR' AS retrieval_mode, s.*
+  SELECT 'VECTOR' AS retrieval_mode, s.base.* EXCEPT (match_embedding), s.distance
   FROM AI.SEARCH(
          TABLE `${CDP_PROJECT}.${CDP_DS}.party_search`,
          'match_key',

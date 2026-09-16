@@ -22,6 +22,7 @@ die()  { printf '  \033[31m✗\033[0m %s\n' "$1"; exit 1; }
 set -a
 # shellcheck disable=SC1090
 source "${CONFIG}"
+CDP_LOCATION_LOWER="$(echo "${CDP_LOCATION:-}" | tr '[:upper:]' '[:lower:]')"
 set +a
 
 SCENARIO="${1:-}"
@@ -30,11 +31,13 @@ SCENARIO="${1:-}"
 FILE="${HERE}/scenario_${SCENARIO}.sql"
 [[ -f "${FILE}" ]] || die "No such scenario: ${SCENARIO} (expected ${FILE})"
 
-VARS='$CDP_PROJECT $CDP_LOCATION $CDP_DS $CDP_DS_TRUTH $CDP_BUCKET
+VARS='$CDP_PROJECT $CDP_LOCATION $CDP_LOCATION_LOWER $CDP_DS $CDP_DS_TRUTH $CDP_BUCKET
       $CDP_CONNECTION $CDP_CONNECTION_PATH $CDP_EMBEDDING_ENDPOINT
       $CDP_EXTRACTION_MODEL $CDP_ADJUDICATOR_MODEL $CDP_PROMPT_VERSION
-      $CDP_TOPK $CDP_TAU_HI $CDP_TAU_LO $CDP_ACCEPT_CONFIDENCE
-      $CDP_STEWARD_CONFIDENCE $CDP_GREYZONE_CAP $CDP_SEED
+      $CDP_TOPK $CDP_TAU_HI $CDP_TAU_LO
+      $CDP_TAU_LOW_IDENTITY $CDP_TAU_SINGLE_SIGNAL $CDP_MIN_NAME_SIMILARITY
+      $CDP_ACCEPT_CONFIDENCE $CDP_STEWARD_CONFIDENCE
+      $CDP_GREYZONE_CAP $CDP_SEED
       $CDP_MAX_BLOCK_SIZE $CDP_PEOPLE $CDP_RECORDS
       $CDP_TARGET_RECORDS $CDP_TARGET_PEOPLE $CDP_REBUILDS_PER_MONTH
       $CDP_PRICE_EMBED_INPUT $CDP_PRICE_EXTRACT_INPUT $CDP_PRICE_EXTRACT_OUTPUT
@@ -45,6 +48,10 @@ VARS='$CDP_PROJECT $CDP_LOCATION $CDP_DS $CDP_DS_TRUTH $CDP_BUCKET
 RENDERED="$(mktemp)"
 trap 'rm -f "${RENDERED}"' EXIT
 envsubst "${VARS}" < "${FILE}" > "${RENDERED}"
+
+if grep -qE '\$\{?CDP_[A-Z_]+\}?' "${RENDERED}"; then
+  die "Unsubstituted tokens in scenario ${SCENARIO}. Check config.env and VARS."
+fi
 
 # The narration lives in the SQL header, so the story and the query can
 # never drift apart.

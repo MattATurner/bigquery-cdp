@@ -109,18 +109,38 @@ joined AS (
   LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.candidate_pairs_semantic` AS s
     ON s.record_id_a = p.record_id_a AND s.record_id_b = p.record_id_b
 ),
--- Ranks are computed per probe record, which is what RRF is defined over:
--- a ranked list for one query, not a global ordering.
+-- Ranks are computed per probe record over both directions of each pair,
+-- so that a record's neighbourhood rank is invariant to alphabetical ID prefix order.
+directed_ranks AS (
+  SELECT
+    record_id_a, record_id_b,
+    IF(found_lexical,
+       RANK() OVER (PARTITION BY probe ORDER BY block_strength DESC, keys_shared DESC),
+       NULL) AS dir_rank_lexical,
+    IF(found_semantic,
+       RANK() OVER (PARTITION BY probe ORDER BY similarity DESC),
+       NULL) AS dir_rank_semantic
+  FROM (
+    SELECT record_id_a AS probe, record_id_a, record_id_b, found_lexical, found_semantic, block_strength, keys_shared, similarity FROM joined
+    UNION ALL
+    SELECT record_id_b AS probe, record_id_a, record_id_b, found_lexical, found_semantic, block_strength, keys_shared, similarity FROM joined
+  )
+),
+pair_ranks AS (
+  SELECT
+    record_id_a, record_id_b,
+    MIN(dir_rank_lexical)  AS rank_lexical,
+    MIN(dir_rank_semantic) AS rank_semantic
+  FROM directed_ranks
+  GROUP BY record_id_a, record_id_b
+),
 ranked AS (
   SELECT
     j.*,
-    IF(found_lexical,
-       RANK() OVER (PARTITION BY record_id_a ORDER BY block_strength DESC, keys_shared DESC),
-       NULL) AS rank_lexical,
-    IF(found_semantic,
-       RANK() OVER (PARTITION BY record_id_a ORDER BY similarity DESC),
-       NULL) AS rank_semantic
+    pr.rank_lexical,
+    pr.rank_semantic
   FROM joined AS j
+  JOIN pair_ranks AS pr USING (record_id_a, record_id_b)
 )
 SELECT
   *,

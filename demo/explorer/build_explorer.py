@@ -24,6 +24,7 @@ not a nicety -- it is the only thing that works.
 from __future__ import annotations
 
 import argparse
+import html as html_mod
 import json
 import sys
 from pathlib import Path
@@ -1525,10 +1526,10 @@ def build(data: dict) -> str:
         subtitle += " \u2014 " + " \u00b7 ".join(bits)
     html = HTML
     html = html.replace("__CSS__", CSS.strip())
-    html = html.replace("__TITLE__", f"{project}.{dataset}".strip("."))
-    html = html.replace("__SUBTITLE__", subtitle)
-    html = html.replace("__DATA__", js_literal(data))
+    html = html.replace("__TITLE__", html_mod.escape(f"{project}.{dataset}".strip(".")))
+    html = html.replace("__SUBTITLE__", html_mod.escape(subtitle))
     html = html.replace("__JS__", JS.strip())
+    html = html.replace("__DATA__", js_literal(data))
     return html
 
 

@@ -205,20 +205,7 @@ FROM counts AS c, clusters AS cl, overmerges AS o, undermerges AS u,
 CREATE OR REPLACE VIEW `${CDP_PROJECT}.${CDP_DS}.v_case_results` AS
 WITH case_pairs AS (
   SELECT
-    -- Attribution is deliberate, not incidental. A pair is attributed to
-    -- the hard case on EITHER side; using whichever record happened to
-    -- sort first would silently hide half of every asymmetric case.
-    --
-    -- SINGLETON is scored rather than excluded. A singleton has no true
-    -- pairs at all, so every predicted pair involving one is a false
-    -- positive — which makes it the cleanest precision test in the
-    -- corpus, and the reason recall figures here are not inflated.
-    CASE
-      WHEN ta.case_type NOT IN ('NORMAL', 'SINGLETON') THEN ta.case_type
-      WHEN tb.case_type NOT IN ('NORMAL', 'SINGLETON') THEN tb.case_type
-      WHEN ta.case_type = 'SINGLETON' OR tb.case_type = 'SINGLETON' THEN 'SINGLETON'
-      ELSE 'NORMAL'
-    END AS case_type,
+    ct AS case_type,
     e.outcome,
     e.retrieved_by,
     e.tier,
@@ -228,7 +215,19 @@ WITH case_pairs AS (
     e.record_id_b
   FROM `${CDP_PROJECT}.${CDP_DS}.eval_pairs` AS e
   LEFT JOIN `${CDP_PROJECT}.${CDP_DS_TRUTH}.person_truth` AS ta ON ta.record_id = e.record_id_a
-  LEFT JOIN `${CDP_PROJECT}.${CDP_DS_TRUTH}.person_truth` AS tb ON tb.record_id = e.record_id_b
+  LEFT JOIN `${CDP_PROJECT}.${CDP_DS_TRUTH}.person_truth` AS tb ON tb.record_id = e.record_id_b,
+  UNNEST(
+    CASE
+      WHEN ta.case_type NOT IN ('NORMAL', 'SINGLETON')
+           AND tb.case_type NOT IN ('NORMAL', 'SINGLETON')
+           AND ta.case_type != tb.case_type
+        THEN [ta.case_type, tb.case_type]
+      WHEN ta.case_type NOT IN ('NORMAL', 'SINGLETON') THEN [ta.case_type]
+      WHEN tb.case_type NOT IN ('NORMAL', 'SINGLETON') THEN [tb.case_type]
+      WHEN ta.case_type = 'SINGLETON' OR tb.case_type = 'SINGLETON' THEN ['SINGLETON']
+      ELSE ['NORMAL']
+    END
+  ) AS ct
 ),
 in_scope AS (
   SELECT * FROM case_pairs WHERE case_type != 'NORMAL'

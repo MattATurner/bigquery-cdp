@@ -53,15 +53,65 @@ REF_RE = re.compile(r"(?:FROM|JOIN)\s+`([^`]+)`", re.I)
 
 def cfg() -> dict:
     out = {}
-    for line in CONFIG.read_text().splitlines():
-        m = re.match(r'^([A-Z_]+)="(.*)"$', line.strip())
+    p = CONFIG if CONFIG.exists() else CONFIG.with_name("config.env.example")
+    if not p.exists():
+        return out
+    for line in p.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r'^([A-Z_]+)=["\']?([^"\'#]*)["\']?(?:\s*#.*)?$', line)
         if m:
-            out[m.group(1)] = m.group(2)
+            out[m.group(1)] = m.group(2).strip()
     return out
 
 
+_TOKEN_RE = re.compile(
+    r"""('''[\s\S]*?'''|\"\"\"[\s\S]*?\"\"\"|'[^'\\]*(?:\\.[^'\\]*)*'|"[^"\\]*(?:\\.[^"\\]*)*"|`[^`]*`|--[^\n]*)""",
+    re.S,
+)
+
+
 def strip_comments(sql: str) -> str:
-    return re.sub(r"--[^\n]*", "", sql)
+    return _TOKEN_RE.sub(lambda m: "" if m.group(0).startswith("--") else m.group(0), sql)
+
+
+def split_statements(sql: str) -> list[str]:
+    stmts = []
+    start = 0
+    in_quote = None
+    i = 0
+    n = len(sql)
+    while i < n:
+        ch = sql[i]
+        if in_quote:
+            if ch == "\\" and in_quote in ("'", '"'):
+                i += 2
+                continue
+            if sql.startswith(in_quote, i):
+                i += len(in_quote)
+                in_quote = None
+                continue
+            i += 1
+        else:
+            if sql.startswith("'''", i) or sql.startswith('"""', i):
+                in_quote = sql[i:i+3]
+                i += 3
+            elif ch in ("'", '"', "`"):
+                in_quote = ch
+                i += 1
+            elif ch == ";":
+                frag = sql[start:i+1].strip()
+                if frag:
+                    stmts.append(frag)
+                start = i + 1
+                i += 1
+            else:
+                i += 1
+    tail = sql[start:].strip()
+    if tail:
+        stmts.append(tail)
+    return stmts
 
 
 def short(name: str) -> str:
@@ -70,24 +120,30 @@ def short(name: str) -> str:
 
 def main() -> int:
     c = cfg()
-    proj, ds, dst = c["CDP_PROJECT"], c["CDP_DS"], c["CDP_DS_TRUTH"]
+    proj = c.get("CDP_PROJECT", "")
+    ds = c.get("CDP_DS", "cdp")
+    dst = c.get("CDP_DS_TRUTH", "cdp_truth")
+    loc = c.get("CDP_LOCATION", "US")
 
     # Live table metadata for both datasets.
     meta = {}
-    for d in (ds, dst):
-        p = subprocess.run(
-            ["bq", "query", f"--project_id={proj}", f"--location={c['CDP_LOCATION']}",
-             "--use_legacy_sql=false", "--format=prettyjson", "--quiet", "--max_rows", "500",
-             f"SELECT table_id, row_count, size_bytes, "
-             f"CAST(TIMESTAMP_MILLIS(last_modified_time) AS STRING) AS modified "
-             f"FROM `{proj}.{d}.__TABLES__`"],
-            capture_output=True, text=True, timeout=300)
-        if p.returncode == 0:
-            for r in json.loads(p.stdout or "[]"):
-                meta[r["table_id"]] = {
-                    "rows": int(r["row_count"]), "bytes": int(r["size_bytes"]),
-                    "modified": r["modified"], "dataset": d,
-                }
+    if proj:
+        for d in (ds, dst):
+            p = subprocess.run(
+                ["bq", "query", f"--project_id={proj}", f"--location={loc}",
+                 "--use_legacy_sql=false", "--format=prettyjson", "--quiet", "--max_rows", "500",
+                 f"SELECT table_id, row_count, size_bytes, "
+                 f"CAST(TIMESTAMP_MILLIS(last_modified_time) AS STRING) AS modified "
+                 f"FROM `{proj}.{d}.__TABLES__`"],
+                capture_output=True, text=True, timeout=300)
+            if p.returncode == 0:
+                for r in json.loads(p.stdout or "[]"):
+                    meta[r["table_id"]] = {
+                        "rows": int(r["row_count"]), "bytes": int(r["size_bytes"]),
+                        "modified": r["modified"], "dataset": d,
+                    }
+            else:
+                print(f"warn: bq query for {proj}.{d} exited {p.returncode}: {p.stderr.strip()}", file=sys.stderr)
 
     stages = []
     for f in sorted(SQL.glob("[0-9]*.sql")):
@@ -95,10 +151,7 @@ def main() -> int:
         body = strip_comments(raw)
 
         steps, created = [], set()
-        for m in re.finditer(r"[^;]+;", body, re.S):
-            frag = m.group(0).strip()
-            if not frag:
-                continue
+        for frag in split_statements(body):
             matched = False
             for pat, label, kind in STMT:
                 mm = re.search(pat, frag, re.I)

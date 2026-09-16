@@ -180,9 +180,13 @@ fore_pool: set[str] = set()
 for _d in (banks.MALE_FORENAMES_BY_GROUP, banks.FEMALE_FORENAMES_BY_GROUP):
     for _g in sorted(_d):
         fore_pool.update(n for n, _w in _d[_g])
+for _entry in getattr(banks, "DIACRITIC_FORENAMES", []):
+    fore_pool.update(_entry)
 sur_pool: set[str] = set()
 for _g in sorted(banks.SURNAMES_BY_GROUP):
     sur_pool.update(n for n, _w in banks.SURNAMES_BY_GROUP[_g])
+for _entry in getattr(banks, "DIACRITIC_SURNAMES", []):
+    sur_pool.update(_entry)
 
 DIMINUTIVES = getattr(banks, "DIMINUTIVES", {})
 SURNAME_VARIANTS = getattr(banks, "SURNAME_VARIANTS", {})

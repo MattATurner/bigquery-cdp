@@ -616,7 +616,7 @@ kbd{background:#2A2D31;border:1px solid #3C4043;border-radius:4px;padding:1px 6p
     </div>
   </div>
   <div class="grow"></div>
-  <div class="callout frag">Ask an agent <b>"how many active customers do we have in EMEA?"</b> and it needs both. Resolution without shared definitions just produces a <b>confident wrong answer</b> — faster than before.</div>
+  <div class="callout frag">Ask an agent <b>"how many active customers do we have in APAC?"</b> and it needs both. Resolution without shared definitions just produces a <b>confident wrong answer</b> — faster than before.</div>
   <p class="sm frag" style="font-size:18px;margin-top:20px">This is why the catalog is a <b style="color:var(--ink)">context plane</b>, not a governance checkbox. It is what stops an autonomous agent inventing its own definition of your business.</p>
   <div class="notes">
     <p><strong>This slide exists because of a specific failure mode.</strong> Teams solve identity, plug in an agent, and then discover finance, marketing and the board each mean something different by "active customer". The agent picks one at random and states it with total confidence.</p>
@@ -701,7 +701,7 @@ kbd{background:#2A2D31;border:1px solid #3C4043;border-radius:4px;padding:1px 6p
 
 <div id="chrome">
   <div id="hint"><kbd>←</kbd> <kbd>→</kbd> navigate &nbsp;·&nbsp; <kbd>N</kbd> notes &nbsp;·&nbsp; <kbd>O</kbd> overview &nbsp;·&nbsp; <kbd>F</kbd> fullscreen</div>
-  <div class="rt"><span id="stitle"></span><span><b id="cur">1</b> / <span id="tot">16</span></span></div>
+  <div class="rt"><span id="stitle"></span><span><b id="cur">1</b> / <span id="tot">17</span></span></div>
 </div>
 
 <aside id="notes"><h5>Presenter notes</h5><div id="ntext"></div></aside>
@@ -774,7 +774,14 @@ kbd{background:#2A2D31;border:1px solid #3C4043;border-radius:4px;padding:1px 6p
   slides.forEach(function(s,n){
     var d = document.createElement('div');
     d.className = 'th';
-    d.innerHTML = '<div class="t">'+(s.dataset.title||('Slide '+(n+1)))+'</div><div class="n">'+(n+1)+'</div>';
+    var t = document.createElement('div');
+    t.className = 't';
+    t.textContent = s.dataset.title || ('Slide '+(n+1));
+    var num = document.createElement('div');
+    num.className = 'n';
+    num.textContent = n+1;
+    d.appendChild(t);
+    d.appendChild(num);
     d.addEventListener('click', function(){ ov.classList.remove('open'); go(n); });
     ov.appendChild(d);
   });

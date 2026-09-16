@@ -77,13 +77,17 @@ MAX_ROWS = 60
 
 
 def cfg() -> dict[str, str]:
-    if not CONFIG.exists():
+    p = CONFIG if CONFIG.exists() else CONFIG.with_name("config.env.example")
+    if not p.exists():
         sys.exit("No demo/config.env — run ./setup.sh first.")
     out = {}
-    for line in CONFIG.read_text().splitlines():
-        m = re.match(r'^([A-Z_]+)="(.*)"$', line.strip())
+    for line in p.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r'^([A-Z_]+)=["\']?([^"\'#]*)["\']?(?:\s*#.*)?$', line)
         if m:
-            out[m.group(1)] = m.group(2)
+            out[m.group(1)] = m.group(2).strip()
     return out
 
 
@@ -94,6 +98,7 @@ def query(c: dict[str, str], sql: str):
          "--format=prettyjson", "--quiet", "--max_rows", str(MAX_ROWS), sql],
         capture_output=True, text=True, timeout=300)
     if p.returncode != 0:
+        print(f"warn: bq query failed (exit {p.returncode}): {p.stderr.strip()}", file=sys.stderr)
         return None
     try:
         return json.loads(p.stdout or "[]")

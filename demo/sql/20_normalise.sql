@@ -259,7 +259,7 @@ WITH unioned AS (
   -- E-commerce · trust 6 · self-service, so diminutives and +tag emails
   SELECT
     record_id, 'ECOM', account_ref, created_at,
-    CONCAT(IFNULL(first_name, ''), ' ', IFNULL(last_name, '')),
+    NULLIF(TRIM(CONCAT(IFNULL(first_name, ''), ' ', IFNULL(last_name, ''))), ''),
     first_name, last_name,
     NULL, NULL, postcode, email, phone, dob,
     NULL, NULL, 1.0, FALSE
@@ -284,7 +284,7 @@ WITH unioned AS (
   -- attached when it is absent.
   SELECT
     record_id, 'POS', txn_id, txn_ts,
-    CONCAT(IFNULL(initial, ''), ' ', IFNULL(surname, '')),
+    NULLIF(TRIM(CONCAT(IFNULL(initial, ''), ' ', IFNULL(surname, ''))), ''),
     initial, surname,
     NULL, NULL, postcode_outward, NULL, NULL, CAST(NULL AS DATE),
     loyalty_account_number, NULL, 1.0, FALSE
@@ -321,7 +321,7 @@ WITH unioned AS (
     c.record_id, 'CALL', c.call_id, c.call_ts,
     c.caller_name, NULL, NULL,
     c.address, NULL, c.postcode, c.email, c.phone, c.dob,
-    c.account_number,
+    IF(c.caller_is_account_holder, c.account_number, NULL),
     CASE
       WHEN NOT c.caller_is_account_holder
         THEN CONCAT(
@@ -354,7 +354,7 @@ WITH unioned AS (
 
 normalised AS (
   SELECT
-    u.* EXCEPT (raw_forename, raw_surname),
+    u.*,
     `${CDP_PROJECT}.${CDP_DS}.norm_name`(u.raw_name)         AS name_norm,
     `${CDP_PROJECT}.${CDP_DS}.norm_name`(u.raw_forename)     AS fore_given,
     `${CDP_PROJECT}.${CDP_DS}.norm_name`(u.raw_surname)      AS sur_given,
@@ -391,6 +391,8 @@ SELECT
 
   -- Raw, preserved verbatim for stewardship and survivorship provenance
   t.raw_name,
+  t.raw_forename,
+  t.raw_surname,
   t.raw_address,
   t.raw_city,
   t.raw_postcode,
@@ -431,7 +433,7 @@ SELECT
     + IF(t.phone_e164    IS NOT NULL, 1, 0)
     + IF(t.raw_dob       IS NOT NULL, 1, 0)
     + IF(t.account_number IS NOT NULL, 1, 0)
-    + IF(t.postcode_norm IS NOT NULL AND REGEXP_CONTAINS(t.postcode_norm, r' '), 1, 0)
+    + IF(t.postcode_norm IS NOT NULL AND LENGTH(t.postcode_norm) = 4, 1, 0)
   )                                                     AS identity_strength,
 
   -- The text that gets embedded and BM25-indexed in stage 30.

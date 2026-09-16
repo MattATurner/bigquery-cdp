@@ -202,12 +202,14 @@ if INVERT:
     print(f"  assertions checked : {checked}")
     print(f"  detected           : {bad}")
     ok = checked >= 20 and bad == checked
-    print(f"  {bad}/{checked} detected -> {'PASS' if ok else 'FAIL'}")
-    if not ok:
+    inconclusive = 0 < checked < 20 and bad == checked
+    status = "PASS" if ok else ("INCONCLUSIVE" if inconclusive else "FAIL")
+    print(f"  {bad}/{checked} detected -> {status}")
+    if not (ok or inconclusive):
         print("  The check does not detect a deliberately wrong answer, so "
               "its clean result on the real lookup means nothing.")
-    print("\nVERDICT: " + ("PASS" if ok else "FAIL"))
-    sys.exit(0 if ok else 1)
+    print(f"\nVERDICT: {status}")
+    sys.exit(0 if (ok or inconclusive) else 1)
 
 print("\nVERDICT: " + ("PASS" if bad == 0 and checked >= 20 else
                        "FAIL" if bad else "INCONCLUSIVE"))

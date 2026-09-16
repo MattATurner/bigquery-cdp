@@ -72,12 +72,18 @@
   {
    "id": "05_preflight",
    "num": "05",
-   "statements": 13,
+   "statements": 14,
    "steps": [
     {
      "op": "create temp table",
      "object": "_pf_embed",
      "kind": "temp",
+     "rows": null
+    },
+    {
+     "op": "assert",
+     "object": "\u2014",
+     "kind": "assert",
      "rows": null
     },
     {
@@ -666,25 +672,25 @@
      "op": "create table",
      "object": "candidate_pairs_semantic",
      "kind": "table",
-     "rows": 328476
+     "rows": 328477
     },
     {
      "op": "create table",
      "object": "candidate_pairs_fused",
      "kind": "table",
-     "rows": 10773841
+     "rows": 10773842
     },
     {
      "op": "create table",
      "object": "pair_features",
      "kind": "table",
-     "rows": 10773841
+     "rows": 10773842
     },
     {
      "op": "create table",
      "object": "pair_tiers",
      "kind": "table",
-     "rows": 10773841
+     "rows": 10773842
     },
     {
      "op": "create view",
@@ -725,44 +731,44 @@
    "outputs": [
     {
      "object": "candidate_pairs_fused",
-     "rows": 10773841,
-     "bytes": 937991438,
-     "modified": "2026-09-15 10:17:41.557+00",
+     "rows": 10773842,
+     "bytes": 937991508,
+     "modified": "2026-09-15 23:07:08.971+00",
      "dataset": "cdp"
     },
     {
      "object": "candidate_pairs_semantic",
-     "rows": 328476,
-     "bytes": 14906194,
-     "modified": "2026-09-15 10:17:34.709+00",
+     "rows": 328477,
+     "bytes": 14906239,
+     "modified": "2026-09-15 23:07:00.036+00",
      "dataset": "cdp"
     },
     {
      "object": "pair_features",
-     "rows": 10773841,
-     "bytes": 5169416348,
-     "modified": "2026-09-15 10:17:51.072+00",
+     "rows": 10773842,
+     "bytes": 5169416654,
+     "modified": "2026-09-15 23:07:19.048+00",
      "dataset": "cdp"
     },
     {
      "object": "pair_tiers",
-     "rows": 10773841,
-     "bytes": 5766833672,
-     "modified": "2026-09-15 10:17:56.439+00",
+     "rows": 10773842,
+     "bytes": 5751979787,
+     "modified": "2026-09-15 23:07:24.604+00",
      "dataset": "cdp"
     },
     {
      "object": "v_candidate_funnel",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 10:17:57.127+00",
+     "modified": "2026-09-15 23:07:25.655+00",
      "dataset": "cdp"
     },
     {
      "object": "v_retrieval_legs",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 10:17:57.918+00",
+     "modified": "2026-09-15 23:07:26.281+00",
      "dataset": "cdp"
     }
    ]
@@ -776,19 +782,19 @@
      "op": "create table if absent",
      "object": "adjudications",
      "kind": "table",
-     "rows": 456300
+     "rows": 456629
     },
     {
      "op": "create table",
      "object": "stg_adjudications_new",
      "kind": "table",
-     "rows": 83176
+     "rows": 329
     },
     {
      "op": "insert into",
      "object": "adjudications",
      "kind": "table",
-     "rows": 456300
+     "rows": 456629
     },
     {
      "op": "create view",
@@ -800,7 +806,7 @@
      "op": "create table",
      "object": "match_decisions",
      "kind": "table",
-     "rows": 85881
+     "rows": 72883
     },
     {
      "op": "create view",
@@ -818,9 +824,9 @@
    "inputs": [
     {
      "object": "pair_tiers",
-     "rows": 10773841,
-     "bytes": 5766833672,
-     "modified": "2026-09-15 10:17:56.439+00",
+     "rows": 10773842,
+     "bytes": 5751979787,
+     "modified": "2026-09-15 23:07:24.604+00",
      "dataset": "cdp"
     },
     {
@@ -834,44 +840,44 @@
    "outputs": [
     {
      "object": "adjudications",
-     "rows": 456300,
-     "bytes": 183196779,
-     "modified": "2026-09-15 11:10:01.463+00",
+     "rows": 456629,
+     "bytes": 183309987,
+     "modified": "2026-09-15 23:08:32.906+00",
      "dataset": "cdp"
     },
     {
      "object": "match_decisions",
-     "rows": 85881,
-     "bytes": 26482887,
-     "modified": "2026-09-15 11:10:08.176+00",
+     "rows": 72883,
+     "bytes": 22428786,
+     "modified": "2026-09-15 23:08:37.317+00",
      "dataset": "cdp"
     },
     {
      "object": "stg_adjudications_new",
-     "rows": 83176,
-     "bytes": 29254400,
-     "modified": "2026-09-15 11:09:58.075+00",
+     "rows": 329,
+     "bytes": 113208,
+     "modified": "2026-09-15 23:08:30.860+00",
      "dataset": "cdp"
     },
     {
      "object": "v_adjudication_summary",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:10:09.251+00",
+     "modified": "2026-09-15 23:08:37.976+00",
      "dataset": "cdp"
     },
     {
      "object": "v_adjudications_current",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:10:02.345+00",
+     "modified": "2026-09-15 23:08:33.600+00",
      "dataset": "cdp"
     },
     {
      "object": "v_injection_guard",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:10:10.195+00",
+     "modified": "2026-09-15 23:08:38.895+00",
      "dataset": "cdp"
     }
    ]
@@ -915,7 +921,7 @@
      "op": "create table",
      "object": "graph_edges_all",
      "kind": "table",
-     "rows": 14044
+     "rows": 13994
     },
     {
      "op": "call procedure",
@@ -927,13 +933,13 @@
      "op": "create table",
      "object": "component_conflicts",
      "kind": "table",
-     "rows": 12
+     "rows": 11
     },
     {
      "op": "create table",
      "object": "graph_edges_pruned",
      "kind": "table",
-     "rows": 13974
+     "rows": 13930
     },
     {
      "op": "call procedure",
@@ -963,7 +969,7 @@
      "op": "create table",
      "object": "resolution_edges",
      "kind": "table",
-     "rows": 85881
+     "rows": 72883
     },
     {
      "op": "create table",
@@ -1047,7 +1053,7 @@
      "op": "create table",
      "object": "edge_suspected_link",
      "kind": "table",
-     "rows": 2874
+     "rows": 2649
     },
     {
      "op": "create table",
@@ -1072,29 +1078,29 @@
     {
      "object": "cc_final",
      "rows": 20000,
-     "bytes": 568389,
-     "modified": "2026-09-15 11:12:30.954+00",
+     "bytes": 568376,
+     "modified": "2026-09-15 23:10:15.965+00",
      "dataset": "cdp"
     },
     {
      "object": "cc_pass1",
      "rows": 20000,
-     "bytes": 568422,
-     "modified": "2026-09-15 11:11:53.543+00",
+     "bytes": 568405,
+     "modified": "2026-09-15 23:09:40.683+00",
      "dataset": "cdp"
     },
     {
      "object": "match_decisions",
-     "rows": 85881,
-     "bytes": 26482887,
-     "modified": "2026-09-15 11:10:08.176+00",
+     "rows": 72883,
+     "bytes": 22428786,
+     "modified": "2026-09-15 23:08:37.317+00",
      "dataset": "cdp"
     },
     {
      "object": "pair_tiers",
-     "rows": 10773841,
-     "bytes": 5766833672,
-     "modified": "2026-09-15 10:17:56.439+00",
+     "rows": 10773842,
+     "bytes": 5751979787,
+     "modified": "2026-09-15 23:07:24.604+00",
      "dataset": "cdp"
     },
     {
@@ -1122,170 +1128,170 @@
    "outputs": [
     {
      "object": "component_conflicts",
-     "rows": 12,
-     "bytes": 680,
-     "modified": "2026-09-15 11:11:55.590+00",
+     "rows": 11,
+     "bytes": 624,
+     "modified": "2026-09-15 23:09:42.497+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_has_email",
      "rows": 7875,
      "bytes": 554571,
-     "modified": "2026-09-15 11:13:00.426+00",
+     "modified": "2026-09-15 23:10:45.569+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_has_phone",
      "rows": 6710,
      "bytes": 403485,
-     "modified": "2026-09-15 11:13:02.392+00",
+     "modified": "2026-09-15 23:10:47.600+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_holds_account",
      "rows": 4327,
      "bytes": 185809,
-     "modified": "2026-09-15 11:13:04.144+00",
+     "modified": "2026-09-15 23:10:49.389+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_lives_at",
      "rows": 9088,
      "bytes": 1012856,
-     "modified": "2026-09-15 11:12:56.504+00",
+     "modified": "2026-09-15 23:10:41.997+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_member_of",
      "rows": 6435,
      "bytes": 276705,
-     "modified": "2026-09-15 11:12:58.660+00",
+     "modified": "2026-09-15 23:10:43.791+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_related_to",
      "rows": 1,
      "bytes": 85,
-     "modified": "2026-09-15 11:13:08.060+00",
+     "modified": "2026-09-15 23:10:53.279+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_resolves_to",
      "rows": 20000,
      "bytes": 1010778,
-     "modified": "2026-09-15 11:12:54.646+00",
+     "modified": "2026-09-15 23:10:40.180+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_suspected_link",
-     "rows": 2874,
-     "bytes": 509735,
-     "modified": "2026-09-15 11:13:06.100+00",
+     "rows": 2649,
+     "bytes": 480905,
+     "modified": "2026-09-15 23:10:51.492+00",
      "dataset": "cdp"
     },
     {
      "object": "graph_edges_all",
-     "rows": 14044,
-     "bytes": 399518,
-     "modified": "2026-09-15 11:11:13.481+00",
+     "rows": 13994,
+     "bytes": 398088,
+     "modified": "2026-09-15 23:08:57.907+00",
      "dataset": "cdp"
     },
     {
      "object": "graph_edges_pruned",
-     "rows": 13974,
-     "bytes": 397510,
-     "modified": "2026-09-15 11:11:59.269+00",
+     "rows": 13930,
+     "bytes": 396254,
+     "modified": "2026-09-15 23:09:45.210+00",
      "dataset": "cdp"
     },
     {
      "object": "graph_nodes",
      "rows": 20000,
      "bytes": 284194,
-     "modified": "2026-09-15 11:11:11.612+00",
+     "modified": "2026-09-15 23:08:56.129+00",
      "dataset": "cdp"
     },
     {
      "object": "node_account",
      "rows": 4309,
      "bytes": 146030,
-     "modified": "2026-09-15 11:12:50.734+00",
+     "modified": "2026-09-15 23:10:36.173+00",
      "dataset": "cdp"
     },
     {
      "object": "node_address",
      "rows": 8598,
      "bytes": 1053885,
-     "modified": "2026-09-15 11:12:45.941+00",
+     "modified": "2026-09-15 23:10:30.618+00",
      "dataset": "cdp"
     },
     {
      "object": "node_email",
      "rows": 7739,
      "bytes": 553005,
-     "modified": "2026-09-15 11:12:47.709+00",
+     "modified": "2026-09-15 23:10:32.375+00",
      "dataset": "cdp"
     },
     {
      "object": "node_household",
      "rows": 7641,
      "bytes": 1074769,
-     "modified": "2026-09-15 11:12:52.359+00",
+     "modified": "2026-09-15 23:10:38.205+00",
      "dataset": "cdp"
     },
     {
      "object": "node_person",
      "rows": 12878,
      "bytes": 922266,
-     "modified": "2026-09-15 11:12:42.376+00",
+     "modified": "2026-09-15 23:10:26.521+00",
      "dataset": "cdp"
     },
     {
      "object": "node_phone",
      "rows": 6669,
      "bytes": 248523,
-     "modified": "2026-09-15 11:12:49.196+00",
+     "modified": "2026-09-15 23:10:34.392+00",
      "dataset": "cdp"
     },
     {
      "object": "node_source_record",
      "rows": 20000,
      "bytes": 1637059,
-     "modified": "2026-09-15 11:12:44.224+00",
+     "modified": "2026-09-15 23:10:28.309+00",
      "dataset": "cdp"
     },
     {
      "object": "person_assignment",
      "rows": 20000,
-     "bytes": 1028389,
-     "modified": "2026-09-15 11:12:33.765+00",
+     "bytes": 1028376,
+     "modified": "2026-09-15 23:10:18.534+00",
      "dataset": "cdp"
     },
     {
      "object": "person_crosswalk",
      "rows": 36079,
      "bytes": 1883872,
-     "modified": "2026-09-15 11:12:35.934+00",
+     "modified": "2026-09-15 23:10:20.805+00",
      "dataset": "cdp"
     },
     {
      "object": "resolution_edges",
-     "rows": 85881,
-     "bytes": 30261651,
-     "modified": "2026-09-15 11:12:39.831+00",
+     "rows": 72883,
+     "bytes": 25635638,
+     "modified": "2026-09-15 23:10:24.307+00",
      "dataset": "cdp"
     },
     {
      "object": "v_cluster_sizes",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:13:09.433+00",
+     "modified": "2026-09-15 23:10:54.568+00",
      "dataset": "cdp"
     },
     {
      "object": "v_graph_summary",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:13:08.693+00",
+     "modified": "2026-09-15 23:10:53.908+00",
      "dataset": "cdp"
     }
    ]
@@ -1328,6 +1334,13 @@
    ],
    "inputs": [
     {
+     "object": "node_person",
+     "rows": 12878,
+     "bytes": 922266,
+     "modified": "2026-09-15 23:10:26.521+00",
+     "dataset": "cdp"
+    },
+    {
      "object": "party_records",
      "rows": 20000,
      "bytes": 7050270,
@@ -1337,8 +1350,8 @@
     {
      "object": "person_assignment",
      "rows": 20000,
-     "bytes": 1028389,
-     "modified": "2026-09-15 11:12:33.765+00",
+     "bytes": 1028376,
+     "modified": "2026-09-15 23:10:18.534+00",
      "dataset": "cdp"
     }
    ],
@@ -1347,28 +1360,28 @@
      "object": "field_assertions",
      "rows": 120918,
      "bytes": 11320557,
-     "modified": "2026-09-15 11:13:42.750+00",
+     "modified": "2026-09-15 23:11:26.575+00",
      "dataset": "cdp"
     },
     {
      "object": "field_survivorship",
      "rows": 83107,
      "bytes": 15630408,
-     "modified": "2026-09-15 11:13:45.979+00",
+     "modified": "2026-09-15 23:11:29.899+00",
      "dataset": "cdp"
     },
     {
      "object": "golden_person",
      "rows": 12878,
      "bytes": 1760385,
-     "modified": "2026-09-15 11:13:48.081+00",
+     "modified": "2026-09-15 23:11:31.781+00",
      "dataset": "cdp"
     },
     {
      "object": "v_survivorship_by_source",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:13:48.620+00",
+     "modified": "2026-09-15 23:11:32.414+00",
      "dataset": "cdp"
     }
    ]
@@ -1417,17 +1430,24 @@
    ],
    "inputs": [
     {
+     "object": "field_survivorship",
+     "rows": 83107,
+     "bytes": 15630408,
+     "modified": "2026-09-15 23:11:29.899+00",
+     "dataset": "cdp"
+    },
+    {
      "object": "golden_person",
      "rows": 12878,
      "bytes": 1760385,
-     "modified": "2026-09-15 11:13:48.081+00",
+     "modified": "2026-09-15 23:11:31.781+00",
      "dataset": "cdp"
     },
     {
      "object": "person_assignment",
      "rows": 20000,
-     "bytes": 1028389,
-     "modified": "2026-09-15 11:12:33.765+00",
+     "bytes": 1028376,
+     "modified": "2026-09-15 23:10:18.534+00",
      "dataset": "cdp"
     },
     {
@@ -1450,42 +1470,42 @@
      "object": "consent_record_state",
      "rows": 11985,
      "bytes": 730319,
-     "modified": "2026-09-15 11:13:57.811+00",
+     "modified": "2026-09-15 23:11:40.199+00",
      "dataset": "cdp"
     },
     {
      "object": "person_consent",
      "rows": 11152,
      "bytes": 2621827,
-     "modified": "2026-09-15 11:14:02.375+00",
+     "modified": "2026-09-15 23:11:44.454+00",
      "dataset": "cdp"
     },
     {
      "object": "person_suppression",
      "rows": 71,
      "bytes": 3176,
-     "modified": "2026-09-15 11:13:59.724+00",
+     "modified": "2026-09-15 23:11:42.127+00",
      "dataset": "cdp"
     },
     {
      "object": "v_consent_conflicts",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:14:03.797+00",
+     "modified": "2026-09-15 23:11:45.714+00",
      "dataset": "cdp"
     },
     {
      "object": "v_consent_impact",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:14:03.172+00",
+     "modified": "2026-09-15 23:11:45.062+00",
      "dataset": "cdp"
     },
     {
      "object": "v_contactable",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:14:04.487+00",
+     "modified": "2026-09-15 23:11:46.328+00",
      "dataset": "cdp"
     }
    ]
@@ -1561,28 +1581,28 @@
      "object": "edge_has_email",
      "rows": 7875,
      "bytes": 554571,
-     "modified": "2026-09-15 11:13:00.426+00",
+     "modified": "2026-09-15 23:10:45.569+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_has_phone",
      "rows": 6710,
      "bytes": 403485,
-     "modified": "2026-09-15 11:13:02.392+00",
+     "modified": "2026-09-15 23:10:47.600+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_holds_account",
      "rows": 4327,
      "bytes": 185809,
-     "modified": "2026-09-15 11:13:04.144+00",
+     "modified": "2026-09-15 23:10:49.389+00",
      "dataset": "cdp"
     },
     {
      "object": "edge_member_of",
      "rows": 6435,
      "bytes": 276705,
-     "modified": "2026-09-15 11:12:58.660+00",
+     "modified": "2026-09-15 23:10:43.791+00",
      "dataset": "cdp"
     },
     {
@@ -1596,35 +1616,35 @@
      "object": "field_survivorship",
      "rows": 83107,
      "bytes": 15630408,
-     "modified": "2026-09-15 11:13:45.979+00",
+     "modified": "2026-09-15 23:11:29.899+00",
      "dataset": "cdp"
     },
     {
      "object": "golden_person",
      "rows": 12878,
      "bytes": 1760385,
-     "modified": "2026-09-15 11:13:48.081+00",
+     "modified": "2026-09-15 23:11:31.781+00",
      "dataset": "cdp"
     },
     {
      "object": "node_household",
      "rows": 7641,
      "bytes": 1074769,
-     "modified": "2026-09-15 11:12:52.359+00",
+     "modified": "2026-09-15 23:10:38.205+00",
      "dataset": "cdp"
     },
     {
      "object": "node_person",
      "rows": 12878,
      "bytes": 922266,
-     "modified": "2026-09-15 11:12:42.376+00",
+     "modified": "2026-09-15 23:10:26.521+00",
      "dataset": "cdp"
     },
     {
      "object": "node_phone",
      "rows": 6669,
      "bytes": 248523,
-     "modified": "2026-09-15 11:12:49.196+00",
+     "modified": "2026-09-15 23:10:34.392+00",
      "dataset": "cdp"
     },
     {
@@ -1637,22 +1657,22 @@
     {
      "object": "person_assignment",
      "rows": 20000,
-     "bytes": 1028389,
-     "modified": "2026-09-15 11:12:33.765+00",
+     "bytes": 1028376,
+     "modified": "2026-09-15 23:10:18.534+00",
      "dataset": "cdp"
     },
     {
      "object": "person_consent",
      "rows": 11152,
      "bytes": 2621827,
-     "modified": "2026-09-15 11:14:02.375+00",
+     "modified": "2026-09-15 23:11:44.454+00",
      "dataset": "cdp"
     },
     {
      "object": "v_contactable",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:14:04.487+00",
+     "modified": "2026-09-15 23:11:46.328+00",
      "dataset": "cdp"
     }
    ],
@@ -1661,63 +1681,63 @@
      "object": "household_profile",
      "rows": 6053,
      "bytes": 667416,
-     "modified": "2026-09-15 11:17:36.987+00",
+     "modified": "2026-09-15 23:14:55.744+00",
      "dataset": "cdp"
     },
     {
      "object": "person_context",
      "rows": 12878,
      "bytes": 1849741,
-     "modified": "2026-09-15 11:17:40.761+00",
+     "modified": "2026-09-15 23:14:59.387+00",
      "dataset": "cdp"
     },
     {
      "object": "person_rfm",
      "rows": 4951,
      "bytes": 528756,
-     "modified": "2026-09-15 11:14:13.376+00",
+     "modified": "2026-09-15 23:11:53.961+00",
      "dataset": "cdp"
     },
     {
      "object": "person_segments",
      "rows": 4951,
      "bytes": 346570,
-     "modified": "2026-09-15 11:14:53.630+00",
+     "modified": "2026-09-15 23:12:34.694+00",
      "dataset": "cdp"
     },
     {
      "object": "segment_labels",
      "rows": 5,
-     "bytes": 471664,
-     "modified": "2026-09-15 11:17:31.770+00",
+     "bytes": 42331,
+     "modified": "2026-09-15 23:14:53.573+00",
      "dataset": "cdp"
     },
     {
      "object": "v_activation_before_after",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:17:43.137+00",
+     "modified": "2026-09-15 23:15:01.768+00",
      "dataset": "cdp"
     },
     {
      "object": "v_audience_lapsed_high_value",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:17:42.356+00",
+     "modified": "2026-09-15 23:15:01.065+00",
      "dataset": "cdp"
     },
     {
      "object": "v_household_waste",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:17:37.534+00",
+     "modified": "2026-09-15 23:14:56.296+00",
      "dataset": "cdp"
     },
     {
      "object": "v_shared_identifiers",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:17:38.104+00",
+     "modified": "2026-09-15 23:14:56.723+00",
      "dataset": "cdp"
     }
    ]
@@ -1761,9 +1781,9 @@
    "inputs": [
     {
      "object": "candidate_pairs_fused",
-     "rows": 10773841,
-     "bytes": 937991438,
-     "modified": "2026-09-15 10:17:41.557+00",
+     "rows": 10773842,
+     "bytes": 937991508,
+     "modified": "2026-09-15 23:07:08.971+00",
      "dataset": "cdp"
     },
     {
@@ -1775,16 +1795,16 @@
     },
     {
      "object": "match_decisions",
-     "rows": 85881,
-     "bytes": 26482887,
-     "modified": "2026-09-15 11:10:08.176+00",
+     "rows": 72883,
+     "bytes": 22428786,
+     "modified": "2026-09-15 23:08:37.317+00",
      "dataset": "cdp"
     },
     {
      "object": "pair_tiers",
-     "rows": 10773841,
-     "bytes": 5766833672,
-     "modified": "2026-09-15 10:17:56.439+00",
+     "rows": 10773842,
+     "bytes": 5751979787,
+     "modified": "2026-09-15 23:07:24.604+00",
      "dataset": "cdp"
     },
     {
@@ -1804,8 +1824,8 @@
     {
      "object": "person_assignment",
      "rows": 20000,
-     "bytes": 1028389,
-     "modified": "2026-09-15 11:12:33.765+00",
+     "bytes": 1028376,
+     "modified": "2026-09-15 23:10:18.534+00",
      "dataset": "cdp"
     },
     {
@@ -1819,7 +1839,7 @@
      "object": "v_adjudications_current",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:10:02.345+00",
+     "modified": "2026-09-15 23:08:33.600+00",
      "dataset": "cdp"
     }
    ],
@@ -1827,36 +1847,36 @@
     {
      "object": "eval_pairs",
      "rows": 19594,
-     "bytes": 1213906,
-     "modified": "2026-09-15 11:18:12.386+00",
+     "bytes": 1212695,
+     "modified": "2026-09-15 23:15:21.392+00",
      "dataset": "cdp"
     },
     {
      "object": "v_case_results",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:18:14.615+00",
+     "modified": "2026-09-15 23:15:23.097+00",
      "dataset": "cdp"
     },
     {
      "object": "v_failures",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:18:16.759+00",
+     "modified": "2026-09-15 23:15:24.411+00",
      "dataset": "cdp"
     },
     {
      "object": "v_retrieval_recall",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:18:16.069+00",
+     "modified": "2026-09-15 23:15:23.589+00",
      "dataset": "cdp"
     },
     {
      "object": "v_scorecard",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:18:13.973+00",
+     "modified": "2026-09-15 23:15:22.318+00",
      "dataset": "cdp"
     }
    ]
@@ -1900,9 +1920,9 @@
    "inputs": [
     {
      "object": "adjudications",
-     "rows": 456300,
-     "bytes": 183196779,
-     "modified": "2026-09-15 11:10:01.463+00",
+     "rows": 456629,
+     "bytes": 183309987,
+     "modified": "2026-09-15 23:08:32.906+00",
      "dataset": "cdp"
     },
     {
@@ -1916,7 +1936,7 @@
      "object": "golden_person",
      "rows": 12878,
      "bytes": 1760385,
-     "modified": "2026-09-15 11:13:48.081+00",
+     "modified": "2026-09-15 23:11:31.781+00",
      "dataset": "cdp"
     },
     {
@@ -1960,35 +1980,35 @@
      "object": "cost_components",
      "rows": 5,
      "bytes": 342,
-     "modified": "2026-09-15 11:18:26.629+00",
+     "modified": "2026-09-15 23:15:33.334+00",
      "dataset": "cdp"
     },
     {
      "object": "ref_unit_prices",
      "rows": 1,
      "bytes": 143,
-     "modified": "2026-09-15 11:18:24.611+00",
+     "modified": "2026-09-15 23:15:31.425+00",
      "dataset": "cdp"
     },
     {
      "object": "v_cost_compute",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:18:27.697+00",
+     "modified": "2026-09-15 23:15:34.347+00",
      "dataset": "cdp"
     },
     {
      "object": "v_cost_model",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:18:28.359+00",
+     "modified": "2026-09-15 23:15:35.025+00",
      "dataset": "cdp"
     },
     {
      "object": "v_cost_sensitivity",
      "rows": 0,
      "bytes": 0,
-     "modified": "2026-09-15 11:18:29.091+00",
+     "modified": "2026-09-15 23:15:35.754+00",
      "dataset": "cdp"
     }
    ]
@@ -2002,7 +2022,7 @@
   },
   {
    "label": "Pairs considered",
-   "value": 10773841,
+   "value": 10773842,
    "note": "after blocking cut the full cross product"
   },
   {
@@ -2012,12 +2032,12 @@
   },
   {
    "label": "Sent to the adjudicator",
-   "value": 83176,
+   "value": 70178,
    "note": "the only pairs that cost model spend"
   },
   {
    "label": "Rejected before the LLM",
-   "value": 10687960,
+   "value": 10700959,
    "note": "scored or ruled out"
   },
   {

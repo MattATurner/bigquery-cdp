@@ -73,13 +73,14 @@ def _flatten(by_group: dict[str, list[tuple[str, int]]]) -> list[tuple[str, int]
     return sorted(totals.items())
 
 
-def _reverse(by_group: dict[str, list[tuple[str, int]]]) -> dict[str, str]:
+def _reverse(*by_groups: dict[str, list[tuple[str, int]]]) -> dict[str, str]:
     """name -> its group. Where a name is shared, the heaviest group wins."""
     best: dict[str, tuple[str, int]] = {}
-    for group, pool in by_group.items():
-        for name, weight in pool:
-            if name not in best or weight > best[name][1]:
-                best[name] = (group, weight)
+    for by_group in by_groups:
+        for group, pool in by_group.items():
+            for name, weight in pool:
+                if name not in best or weight > best[name][1]:
+                    best[name] = (group, weight)
     return {name: group for name, (group, _) in best.items()}
 
 
@@ -88,10 +89,10 @@ FEMALE_FORENAMES: list[tuple[str, int]] = _flatten(FEMALE_FORENAMES_BY_GROUP)
 SURNAMES: list[tuple[str, int]] = _flatten(SURNAMES_BY_GROUP)
 
 SURNAME_GROUP: dict[str, str] = _reverse(SURNAMES_BY_GROUP)
-FORENAME_GROUP: dict[str, str] = {
-    **_reverse(MALE_FORENAMES_BY_GROUP),
-    **_reverse(FEMALE_FORENAMES_BY_GROUP),
-}
+FORENAME_GROUP: dict[str, str] = _reverse(
+    MALE_FORENAMES_BY_GROUP,
+    FEMALE_FORENAMES_BY_GROUP,
+)
 
 # city -> region profile, for biasing the ethnic mix of names by where the
 # person lives. Sydney is far more diverse than regional Australia.
