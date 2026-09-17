@@ -254,3 +254,56 @@ AS (
   FROM `${CDP_PROJECT}.${CDP_DS}.field_survivorship` AS s
   WHERE s.person_id = p_person_id
 );
+
+
+-- ---------------------------------------------------------------------
+-- 80f · Bitemporal Attribute History (SCD Type 2)
+--
+-- golden_person is a current-state snapshot (SCD Type 1). For point-in-time
+-- analytics — e.g. attributing historical store revenue to the state or
+-- postcode where the customer lived WHEN THE ORDER WAS PLACED rather than
+-- where they moved years later — this view reconstructs the valid_from /
+-- valid_to timeline per attribute across all resolved records.
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE VIEW `${CDP_PROJECT}.${CDP_DS}.v_golden_person_attribute_history` AS
+WITH ordered_changes AS (
+  SELECT
+    person_id,
+    field,
+    value_raw        AS attribute_value,
+    value_norm,
+    source_system,
+    record_id        AS asserted_by_record_id,
+    source_trust,
+    source_ts        AS valid_from,
+    LAG(value_norm) OVER (
+      PARTITION BY person_id, field
+      ORDER BY source_ts ASC, source_trust ASC, record_id ASC
+    ) AS prev_value_norm
+  FROM `${CDP_PROJECT}.${CDP_DS}.field_assertions`
+  WHERE source_ts IS NOT NULL
+),
+distinct_transitions AS (
+  SELECT * EXCEPT (prev_value_norm)
+  FROM ordered_changes
+  WHERE prev_value_norm IS NULL OR value_norm != prev_value_norm
+)
+SELECT
+  person_id,
+  field,
+  attribute_value,
+  source_system,
+  asserted_by_record_id,
+  source_trust,
+  valid_from,
+  LEAD(valid_from) OVER (
+    PARTITION BY person_id, field
+    ORDER BY valid_from ASC
+  ) AS valid_to,
+  LEAD(valid_from) OVER (
+    PARTITION BY person_id, field
+    ORDER BY valid_from ASC
+  ) IS NULL AS is_current
+FROM distinct_transitions;
+

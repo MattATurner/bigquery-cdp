@@ -171,7 +171,29 @@ FROM ranked;
 CREATE OR REPLACE TABLE `${CDP_PROJECT}.${CDP_DS}.pair_features`
 CLUSTER BY record_id_a, record_id_b
 AS
-WITH pairs AS (
+WITH total_records AS (
+  SELECT GREATEST(1, COUNT(*)) AS n FROM `${CDP_PROJECT}.${CDP_DS}.party_search`
+),
+surname_idf AS (
+  SELECT
+    surname_norm,
+    -- Bounded Fellegi-Sunter / IDF weight in [0.50, 1.80]: high-frequency
+    -- surnames (e.g. SMITH) contribute less log-odds evidence than rare ones.
+    LEAST(1.80, GREATEST(0.50, SAFE_DIVIDE(LN(SAFE_DIVIDE(t.n, COUNT(*))), 5.0))) AS sur_idf_weight
+  FROM `${CDP_PROJECT}.${CDP_DS}.party_search`, total_records AS t
+  WHERE surname_norm IS NOT NULL AND surname_norm != ''
+  GROUP BY surname_norm, t.n
+),
+postcode_idf AS (
+  SELECT
+    postcode_norm,
+    -- Bounded IDF weight in [0.60, 1.50] discounting dense urban postcodes.
+    LEAST(1.50, GREATEST(0.60, SAFE_DIVIDE(LN(SAFE_DIVIDE(t.n, COUNT(*))), 4.5))) AS pc_idf_weight
+  FROM `${CDP_PROJECT}.${CDP_DS}.party_search`, total_records AS t
+  WHERE postcode_norm IS NOT NULL AND postcode_norm != ''
+  GROUP BY postcode_norm, t.n
+),
+pairs AS (
   SELECT
     f.*,
     a.source_system   AS a_source,  b.source_system   AS b_source,
@@ -187,10 +209,14 @@ WITH pairs AS (
     a.dob             AS a_dob,     b.dob             AS b_dob,
     a.account_number  AS a_acct,    b.account_number  AS b_acct,
     a.identity_strength AS a_strength, b.identity_strength AS b_strength,
-    a.match_key       AS a_match_key, b.match_key     AS b_match_key
+    a.match_key       AS a_match_key, b.match_key     AS b_match_key,
+    IFNULL(si.sur_idf_weight, 1.0) AS surname_idf_weight,
+    IFNULL(pi.pc_idf_weight,  1.0) AS postcode_idf_weight
   FROM `${CDP_PROJECT}.${CDP_DS}.candidate_pairs_fused` AS f
   JOIN `${CDP_PROJECT}.${CDP_DS}.party_search` AS a ON a.record_id = f.record_id_a
   JOIN `${CDP_PROJECT}.${CDP_DS}.party_search` AS b ON b.record_id = f.record_id_b
+  LEFT JOIN surname_idf  AS si ON si.surname_norm  = a.surname_norm
+  LEFT JOIN postcode_idf AS pi ON pi.postcode_norm = a.postcode_norm
 ),
 featured AS (
   SELECT
@@ -260,15 +286,16 @@ derived AS (
 scored AS (
   SELECT
     d.*,
-    -- Rule score in [0, 1]. Additive evidence, then an explicit penalty.
+    -- Rule score in [0, 1]. Additive evidence weighted by Fellegi-Sunter
+    -- IDF frequency priors for surname and postcode, plus explicit penalty.
     LEAST(1.0, GREATEST(0.0,
         IF(acct_match,      0.50, 0.0)
       + IF(email_match,     0.45, 0.0)
       + IF(phone_match,     0.35, 0.0)
       + IF(dob_match,       0.30, 0.0)
-      + IF(postcode_match,  0.12, 0.0)
+      + IF(postcode_match,  0.12 * postcode_idf_weight, 0.0)
       + IF(address_exact,   0.15, 0.0)
-      + IF(surname_match,   0.08, 0.0)
+      + IF(surname_match,   0.08 * surname_idf_weight,  0.0)
       + IF(forename_match,  0.08, 0.0)
       + 0.15 * IFNULL(name_similarity, 0.0)
       - IF(dob_conflict,    0.50, 0.0)

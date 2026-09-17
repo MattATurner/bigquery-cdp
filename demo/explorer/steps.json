@@ -1299,7 +1299,7 @@
   {
    "id": "80_survivorship",
    "num": "80",
-   "statements": 5,
+   "statements": 6,
    "steps": [
     {
      "op": "create table",
@@ -1329,6 +1329,12 @@
      "op": "create table function",
      "object": "tf_explain_person",
      "kind": "routine",
+     "rows": null
+    },
+    {
+     "op": "create view",
+     "object": "v_golden_person_attribute_history",
+     "kind": "view",
      "rows": null
     }
    ],

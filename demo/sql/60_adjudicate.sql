@@ -178,6 +178,12 @@ to weigh carefully, and rule 1 applies.
 Your rationale must be one sentence a data steward could read in a queue and act on.
 Set decisive_evidence to the single strongest signal you actually used.
 
+ARCHETYPE-SPECIFIC GUIDANCE
+- HOUSEHOLD_OR_SIBLING_TRAP: Different forenames at the same address/postcode with no shared personal email/phone are distinct household members (siblings/spouses) -> answer NO_MATCH unless DOB and a personal identifier agree.
+- NAME_ORDER_TRANSPOSITION: Forename and surname are exact transpositions (e.g. Wei Chen vs Chen Wei). If DOB or address/phone agrees -> MATCH; if DOB conflicts or states differ -> NO_MATCH.
+- MARRIED_NAME_OR_SURNAME_CHANGE: Different surnames with matching DOB and mobile/email indicate a surname change -> answer MATCH.
+- SHARED_LOYALTY_CARD_HOUSEHOLD: Loyalty cards are sometimes shared by spouses/relatives. If forenames conflict and DOBs conflict or unstructured notes indicate a relative calling on behalf of the holder -> answer NO_MATCH.
+
 EVIDENCE
 ''',
         TO_JSON_STRING(STRUCT(
@@ -196,6 +202,17 @@ EVIDENCE
             o.b_strength      AS identity_completeness_0_to_5
           ) AS record_b,
           STRUCT(
+            CASE
+              WHEN o.forename_conflict AND (o.address_exact OR o.postcode_match)
+                THEN 'HOUSEHOLD_OR_SIBLING_TRAP'
+              WHEN o.a_fore = o.b_sur AND o.a_sur = o.b_fore
+                THEN 'NAME_ORDER_TRANSPOSITION'
+              WHEN NOT o.surname_match AND o.dob_match AND (o.phone_match OR o.email_match)
+                THEN 'MARRIED_NAME_OR_SURNAME_CHANGE'
+              WHEN o.acct_match AND o.forename_conflict
+                THEN 'SHARED_LOYALTY_CARD_HOUSEHOLD'
+              ELSE 'GENERAL_AMBIGUITY'
+            END AS ambiguity_archetype,
             o.acct_match           AS same_loyalty_account,
             o.email_match          AS same_email,
             o.phone_match          AS same_phone,

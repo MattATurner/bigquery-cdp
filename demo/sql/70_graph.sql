@@ -170,6 +170,25 @@ links AS (
     ON t.record_id_a = d.record_id_a AND t.record_id_b = d.record_id_b
   WHERE d.decision = 'LINK'
 ),
+undirected AS (
+  SELECT record_id_a AS u, record_id_b AS v, dob_conflict FROM links
+  UNION ALL
+  SELECT record_id_b AS u, record_id_a AS v, dob_conflict FROM links
+),
+-- Triangle support (local clustering consensus): an edge (a, b) that shares
+-- a common neighbour c with no DOB conflict belongs to a dense sub-cluster
+-- rather than a single weak bridge between two distinct people.
+triangle_edges AS (
+  SELECT DISTINCT
+    l.record_id_a,
+    l.record_id_b
+  FROM links AS l
+  JOIN undirected AS e1
+    ON e1.u = l.record_id_a AND NOT e1.dob_conflict
+  JOIN undirected AS e2
+    ON e2.u = l.record_id_b AND e2.v = e1.v AND NOT e2.dob_conflict
+  WHERE e1.v != l.record_id_a AND e1.v != l.record_id_b
+),
 classified AS (
   SELECT
     l.*,
@@ -181,13 +200,16 @@ classified AS (
     (NOT l.dob_conflict
      AND l.a_dob IS NOT NULL AND l.b_dob IS NOT NULL
      AND (l.acct_match OR l.email_match OR l.phone_match OR l.dob_match
-          OR l.combined_score >= 0.95))                           AS strong
+          OR l.combined_score >= 0.95))                           AS strong,
+    (tr.record_id_a IS NOT NULL AND NOT l.dob_conflict)           AS has_triangle_support
   FROM links AS l
+  LEFT JOIN triangle_edges AS tr
+    ON tr.record_id_a = l.record_id_a AND tr.record_id_b = l.record_id_b
 ),
 kept AS (
   SELECT record_id_a, record_id_b
   FROM classified
-  WHERE NOT in_suspect_component OR strong
+  WHERE NOT in_suspect_component OR strong OR has_triangle_support
 )
 SELECT record_id_a AS src, record_id_b AS dst FROM kept
 UNION ALL

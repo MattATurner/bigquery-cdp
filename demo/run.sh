@@ -5,6 +5,7 @@
 #   ./run.sh              full build
 #   ./run.sh --from 50    resume from stage 50
 #   ./run.sh --only 95    run one stage
+#   ./run.sh --replay-ai  fast demo mode: reuse existing Vertex AI tables in BigQuery
 #   ./run.sh --dry-run    render SQL, submit nothing
 #
 # Idempotent: every stage uses CREATE OR REPLACE. Safe to re-run.
@@ -22,13 +23,14 @@ info() { printf '  \033[36m→\033[0m %s\n' "$1"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
 die()  { printf '  \033[31m✗\033[0m %s\n' "$1"; exit 1; }
 
-FROM=0; ONLY=""; DRY=0
+FROM=0; ONLY=""; DRY=0; REPLAY_AI=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --from)    [[ $# -ge 2 ]] || die "Option --from requires a stage number"; FROM="$2"; shift 2 ;;
-    --only)    [[ $# -ge 2 ]] || die "Option --only requires a stage number"; ONLY="$2"; shift 2 ;;
-    --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    --from)      [[ $# -ge 2 ]] || die "Option --from requires a stage number"; FROM="$2"; shift 2 ;;
+    --only)      [[ $# -ge 2 ]] || die "Option --only requires a stage number"; ONLY="$2"; shift 2 ;;
+    --replay-ai) REPLAY_AI=1; shift ;;
+    --dry-run)   DRY=1; shift ;;
+    -h|--help)   sed -n '2,13p' "$0"; exit 0 ;;
     *) die "Unknown argument: $1" ;;
   esac
 done
@@ -87,6 +89,35 @@ run_sql() {
 
   local start; start=$(date +%s)
   info "${base} ..."
+
+  if [[ "${REPLAY_AI}" == "1" && "${base}" == "30_embed" ]]; then
+    local emb_cnt
+    emb_cnt="$(bq query --project_id="${CDP_PROJECT}" --location="${CDP_LOCATION}" --use_legacy_sql=false --format=csv --quiet \
+      "SELECT COUNT(*) FROM \`${CDP_PROJECT}.${CDP_DS}.party_embeddings\`" 2>/dev/null | tail -n 1 || echo 0)"
+    if [[ "${emb_cnt}" =~ ^[0-9]+$ ]] && (( emb_cnt > 0 )); then
+      ok "${base} (reused ${emb_cnt} cached embeddings in BigQuery -- fast demo mode)"
+      echo "${base}" >> "${STATE_DIR}/completed"
+      return
+    fi
+  fi
+
+  if [[ "${REPLAY_AI}" == "1" && "${base}" == "60_adjudicate" ]]; then
+    local adj_cnt
+    adj_cnt="$(bq query --project_id="${CDP_PROJECT}" --location="${CDP_LOCATION}" --use_legacy_sql=false --format=csv --quiet \
+      "SELECT COUNT(*) FROM \`${CDP_PROJECT}.${CDP_DS}.adjudications\`" 2>/dev/null | tail -n 1 || echo 0)"
+    if [[ "${adj_cnt}" =~ ^[0-9]+$ ]] && (( adj_cnt > 0 )); then
+      # Re-run only the downstream views (60c+) using existing adjudications ledger
+      awk '/^-- 60c ·/{flag=1} flag' "${rendered}" | bq query \
+        --project_id="${CDP_PROJECT}" \
+        --location="${CDP_LOCATION}" \
+        --use_legacy_sql=false \
+        --format=none \
+        --quiet
+      ok "${base} (reused ${adj_cnt} cached LLM adjudications in BigQuery -- fast demo mode)"
+      echo "${base}" >> "${STATE_DIR}/completed"
+      return
+    fi
+  fi
 
   if ! bq query \
         --project_id="${CDP_PROJECT}" \
