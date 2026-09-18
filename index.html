@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Composable CDP — MDM at the Core (BigQuery Native)</title>
 <style>
@@ -289,9 +292,9 @@ strong {
 .callout-banner {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.14) 0%, rgba(30, 41, 59, 0.85) 100%);
+  background: #131D2E;
   border-left: 4px solid var(--primary);
-  border-top: 1px solid rgba(56, 189, 248, 0.28);
+  border-top: 1px solid rgba(56, 189, 248, 0.35);
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   border-radius: 0 12px 12px 0;
@@ -300,19 +303,32 @@ strong {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(8px);
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
+}
+
+.callout-banner.active-banner {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+  z-index: 5;
 }
 
 .callout-banner.warn {
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(30, 41, 59, 0.85) 100%);
+  background: #1F1916;
   border-left-color: var(--accent);
-  border-top-color: rgba(245, 158, 11, 0.3);
+  border-top-color: rgba(245, 158, 11, 0.4);
 }
 
 .callout-banner.success {
-  background: linear-gradient(90deg, rgba(52, 211, 153, 0.15) 0%, rgba(30, 41, 59, 0.85) 100%);
+  background: #102221;
   border-left-color: var(--secondary);
-  border-top-color: rgba(52, 211, 153, 0.3);
+  border-top-color: rgba(52, 211, 153, 0.4);
 }
 
 /* Code Walkthrough Layouts */
@@ -454,21 +470,27 @@ strong {
   position: fixed;
   left: 28px;
   right: 28px;
-  bottom: 68px;
-  background: rgba(15, 23, 42, 0.97);
-  border: 1.5px solid var(--primary);
+  bottom: 64px;
+  background: #0D131F;
+  border: 2px solid var(--primary);
   border-radius: 14px;
-  padding: 20px 26px;
-  box-shadow: var(--shadow-md);
-  transform: translateY(130%);
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 60;
-  max-height: 32vh;
+  padding: 22px 28px;
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.9);
+  transform: translateY(calc(100% + 90px));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, visibility 0.22s ease;
+  z-index: 85;
+  max-height: 36vh;
   overflow-y: auto;
 }
 
 .notes-drawer.open {
   transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .notes-header {
@@ -697,13 +719,13 @@ strong {
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Why exact SQL joins fail:</strong> Nicknames (<code>Jonathan</code> vs <code>J.</code>) and missing address fields cause deterministic rules to miss 35%+ of true customer links.</div>
       </div>
-      <div class="callout-banner warn" data-build="2" data-active-step="2">
+      <div class="callout-banner warn" data-active-step="2">
         <div><strong>Why naive fuzzy matching fails:</strong> Shared addresses (<code>2042</code>) and shared loyalty accounts merge spouses and twins into a single corrupted identity.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>The Composable MDM Requirement:</strong> You need semantic recall to find candidates, IDF frequency weights to score evidence, and LLM reasoning to split households.</div>
       </div>
     </div>
@@ -752,10 +774,10 @@ strong {
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner warn" data-build="1" data-active-step="1">
+      <div class="callout-banner warn" data-active-step="1">
         <div><strong>The CISO &amp; CFO Problem:</strong> Packaged CDPs double your data governance surface area while charging per-profile SaaS taxes on your own data.</div>
       </div>
-      <div class="callout-banner success" data-build="2" data-active-step="2">
+      <div class="callout-banner success" data-active-step="2">
         <div><strong>Architectural Takeaway:</strong> Keep storage, compute, vector indexing, and Gemini inference inside a single BigQuery security perimeter.</div>
       </div>
     </div>
@@ -806,13 +828,13 @@ strong {
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Don&apos;t overpay for connectors:</strong> Moving JSON payloads from SaaS APIs into BigQuery tables requires zero proprietary vendor lock-in.</div>
       </div>
-      <div class="callout-banner warn" data-build="2" data-active-step="2">
+      <div class="callout-banner warn" data-active-step="2">
         <div><strong>Garbage In, Hallucinations Out:</strong> An AI agent or marketing campaign built on un-resolved duplicate records destroys customer trust immediately.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>The Thesis:</strong> Solve Master Data Management inside BigQuery, and the rest of the Composable CDP assembles cleanly around it.</div>
       </div>
     </div>
@@ -887,19 +909,19 @@ strong {
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Layer 01 (Access):</strong> No external staging buckets—BigQuery reads structured tables and unstructured GCS audio/PDFs in place.</div>
       </div>
-      <div class="callout-banner" data-build="2" data-active-step="2">
+      <div class="callout-banner" data-active-step="2">
         <div><strong>Layer 02 (Process):</strong> Standardises names, E.164 phones, and postcodes into deterministic blocking keys and canonical <code>match_key</code> text.</div>
       </div>
-      <div class="callout-banner" data-build="3" data-active-step="3">
+      <div class="callout-banner" data-active-step="3">
         <div><strong>Layer 03 (Ground):</strong> Combines semantic vector recall with Fellegi–Sunter statistical rigor, calling Gemini only on the ambiguous 2% grey zone.</div>
       </div>
-      <div class="callout-banner" data-build="4" data-active-step="4">
+      <div class="callout-banner" data-active-step="4">
         <div><strong>Layer 04 (Relate):</strong> Resolves transitive clusters in pure procedural SQL while severing weak single-bridge household contradictions.</div>
       </div>
-      <div class="callout-banner success" data-build="5" data-active-step="5">
+      <div class="callout-banner success" data-active-step="5">
         <div><strong>End-to-End Result:</strong> One SQL pipeline (`demo/run.sh`) executes all 15 stages inside a single governed BigQuery dataset.</div>
       </div>
     </div>
@@ -953,13 +975,13 @@ strong {
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Unstructured Unlock:</strong> 80% of customer interactions happen in voice and chat—Object Tables make them first-class identity inputs.</div>
       </div>
-      <div class="callout-banner" data-build="2" data-active-step="2">
+      <div class="callout-banner" data-active-step="2">
         <div><strong>Multi-Cloud Reality:</strong> Acquisitions leave enterprises with data split across AWS, Snowflake, and GCP; BigLake unifies them virtually.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>Security Guarantee:</strong> Governance policies, row-level security, and column masking apply uniformly across all three access paths.</div>
       </div>
     </div>
@@ -1122,13 +1144,13 @@ strong {
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Semantic Recall:</strong> Captures 98.4% of true matches even across severe OCR noise and missing address lines.</div>
       </div>
-      <div class="callout-banner" data-build="2" data-active-step="2">
+      <div class="callout-banner" data-active-step="2">
         <div><strong>Identifier Anchor:</strong> Prevents high-value deterministic matches from being lost in high-dimensional embedding space.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>Statistical Rigor (`50_candidates.sql`):</strong> Rare surnames provide decisive matching evidence; ubiquitous surnames require corroborating DOB or phone.</div>
       </div>
     </div>
@@ -1183,13 +1205,13 @@ strong {
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Rule Efficiency:</strong> Deterministic SQL handles the easy 85% of matches in seconds using standard BigQuery slot compute.</div>
       </div>
-      <div class="callout-banner warn" data-build="2" data-active-step="2">
+      <div class="callout-banner warn" data-active-step="2">
         <div><strong>Where Legacy MDM Fails:</strong> Legacy tools force data stewards to manually review the grey zone—or set a blunt threshold that tanks precision.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>Measured Unit Economics (`96_cost_model.sql`):</strong> Scaling this exact funnel to 15,000,000 enterprise records costs ~$142 in total Vertex AI inference.</div>
       </div>
     </div>
@@ -1244,13 +1266,13 @@ strong {
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Archetype Precision:</strong> Telling Gemini <em>why</em> two records look ambiguous cuts household false-positives by over 60%.</div>
       </div>
-      <div class="callout-banner" data-build="2" data-active-step="2">
+      <div class="callout-banner" data-active-step="2">
         <div><strong>Regulatory Explainability:</strong> Every merged customer profile links directly to the exact LLM reasoning string in <code>cdp.ai_adjudications</code>.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>Live Notebook Sandbox:</strong> Section 9 of <code>demo/notebook.ipynb</code> lets you test adversarial prompt-injection payloads live against BigQuery.</div>
       </div>
     </div>
@@ -1382,13 +1404,13 @@ triangle_edges <span class="kw">AS</span> (
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Deterministic Tie-Breaking:</strong> SQL window functions guarantee 100% reproducible survivorship across re-runs (`record_id ASC` final tie-breaker).</div>
       </div>
-      <div class="callout-banner" data-build="2" data-active-step="2">
+      <div class="callout-banner" data-active-step="2">
         <div><strong>Zero Data Destruction:</strong> All losing values remain queryable in <code>cdp.golden_person_lineage</code> for root-cause debugging.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>Bitemporal SCD Type 2 (`80f`):</strong> <code>v_golden_person_attribute_history</code> lets analysts query exact customer state at any historical timestamp.</div>
       </div>
     </div>
@@ -1429,10 +1451,10 @@ triangle_edges <span class="kw">AS</span> (
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Identity Grounding:</strong> Resolves customer entities in sub-second latency before the agent generates a response.</div>
       </div>
-      <div class="callout-banner success" data-build="2" data-active-step="2">
+      <div class="callout-banner success" data-active-step="2">
         <div><strong>The Agent-Ready Formula:</strong> <code>Resolved Identity (MDM) + Governed Semantics (Knowledge Catalog) = Hallucination-Free Enterprise AI</code>.</div>
       </div>
     </div>
@@ -1487,13 +1509,13 @@ triangle_edges <span class="kw">AS</span> (
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Operational Speed:</strong> Test real-time checkout identity lookup interactively in Section 9 of <code>demo/notebook.ipynb</code>.</div>
       </div>
-      <div class="callout-banner" data-build="2" data-active-step="2">
+      <div class="callout-banner" data-active-step="2">
         <div><strong>Immediate Media ROI:</strong> Eliminating household and nickname duplicates typically saves 12–18% of wasted retargeting budget.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>Single Warehouse Truth:</strong> Every operational API and analytical dashboard reads from the exact same governed <code>person_id</code>.</div>
       </div>
     </div>
@@ -1548,13 +1570,13 @@ triangle_edges <span class="kw">AS</span> (
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>GDPR / CCPA Compliance:</strong> An explicit revocation on any source record immediately suppresses marketing activation across the entire cluster.</div>
       </div>
-      <div class="callout-banner" data-build="2" data-active-step="2">
+      <div class="callout-banner" data-active-step="2">
         <div><strong>Right to be Forgotten (RTBF):</strong> Deleting a person_id cascades cleanly through BigQuery tables without hunting across third-party SaaS caches.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>Auditability:</strong> Every consent decision and lineage hop is queryable via standard SQL for regulatory compliance inspections.</div>
       </div>
     </div>
@@ -1609,13 +1631,13 @@ triangle_edges <span class="kw">AS</span> (
     </div>
 
     <div class="evidence-dock">
-      <div class="callout-banner" data-build="1" data-active-step="1">
+      <div class="callout-banner" data-active-step="1">
         <div><strong>Run the Benchmark Today:</strong> Execute <code>bash demo/run.sh</code> to run all 15 SQL stages end-to-end against 20,000 synthetic records.</div>
       </div>
-      <div class="callout-banner" data-build="2" data-active-step="2">
+      <div class="callout-banner" data-active-step="2">
         <div><strong>Fast Demo Replay Mode:</strong> Run <code>bash demo/run.sh --replay-ai</code> to iterate on SQL scoring rules and graph thresholds in ~15 seconds.</div>
       </div>
-      <div class="callout-banner success" data-build="3" data-active-step="3">
+      <div class="callout-banner success" data-active-step="3">
         <div><strong>Explore Every Query Live:</strong> Press <kbd>S</kbd> right now to inspect all 15 production SQL scripts or open the interactive Stage Explorer.</div>
       </div>
     </div>
@@ -1722,8 +1744,16 @@ function show(slideIdx, stepIdx = 0, broadcast = true) {
 
   // 2. Apply progressive build visibility (data-build="K")
   targetSlide.querySelectorAll('[data-build]').forEach(el => {
+    if (el.classList.contains('callout-banner')) return; // handled below
     const reqStep = parseInt(el.getAttribute('data-build'), 10);
     el.classList.toggle('build-visible', curStep >= reqStep);
+  });
+
+  // 2b. Apply exclusive callout-banner visibility for current step
+  targetSlide.querySelectorAll('.callout-banner').forEach(banner => {
+    const activeAttr = banner.getAttribute('data-active-step') || banner.getAttribute('data-build') || '';
+    const activeSteps = activeAttr.split(',').map(s => parseInt(s.trim(), 10));
+    banner.classList.toggle('active-banner', activeSteps.includes(curStep));
   });
 
   // 3. Apply Focus-and-Context Scaffolding (data-active-step="1,3")
