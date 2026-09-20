@@ -59,24 +59,67 @@ def build_html():
 {fonts_css}
 
 :root {{
-  --bg: #0B0F17;
-  --surface: #151C28;
+  /* Light Mode Default (per html-presentation skill Step 1d) */
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-alt: #F1F5F9;
+  --surface-hover: #E2E8F0;
+  --border: #CBD5E1;
+  --text: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --primary: #2563EB;      /* Core brand/structure */
+  --primary-light: rgba(37, 99, 235, 0.10);
+  --primary-border: rgba(37, 99, 235, 0.30);
+  --secondary: #0D9488;    /* Positive/survivorship contrast */
+  --secondary-light: rgba(13, 148, 136, 0.10);
+  --secondary-border: rgba(13, 148, 136, 0.30);
+  --accent: #D97706;       /* Spotlight / callout highlight */
+  --accent-light: rgba(217, 119, 6, 0.12);
+  --danger: #DC2626;       /* Trap / warning highlight */
+  --dim-opacity: 0.22;     /* Opacity for inactive context during builds */
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.10);
+  --shadow-spotlight: 0 12px 32px -4px rgba(37, 99, 235, 0.24);
+  --banner-bg: #EFF6FF;
+  --banner-warn-bg: #FFFBEB;
+  --banner-success-bg: #F0FDFA;
+  --footer-bg: rgba(255, 255, 255, 0.95);
+  --notes-bg: #FFFFFF;
+  --code-bg: #0F172A;
+  --font-sans: 'Google Sans', 'Google Sans Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Google Sans Mono', 'JetBrains Mono', monospace;
+}}
+
+:root[data-theme="dark"] {{
+  /* Dark Mode Tokens */
+  --bg: #0B0F19;
+  --surface: #151C2C;
   --surface-alt: #1E293B;
   --surface-hover: #26354D;
-  --border: #2E3C52;
+  --border: #334155;
   --text: #F8FAFC;
   --text-secondary: #CBD5E1;
   --text-muted: #94A3B8;
-  --primary: #38BDF8;      /* Core brand/structure accent */
-  --secondary: #34D399;    /* Positive/survivorship contrast */
-  --accent: #F59E0B;       /* Spotlight / callout highlight */
-  --danger: #F87171;       /* Trap / warning highlight */
-  --dim-opacity: 0.22;     /* Opacity for inactive context during builds */
+  --primary: #38BDF8;
+  --primary-light: rgba(56, 189, 248, 0.14);
+  --primary-border: rgba(56, 189, 248, 0.35);
+  --secondary: #34D399;
+  --secondary-light: rgba(52, 211, 153, 0.14);
+  --secondary-border: rgba(52, 211, 153, 0.35);
+  --accent: #F59E0B;
+  --accent-light: rgba(245, 158, 11, 0.15);
+  --danger: #F87171;
+  --dim-opacity: 0.20;
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
   --shadow-spotlight: 0 12px 34px -4px rgba(56, 189, 248, 0.32);
-  --font-sans: 'Google Sans', 'Google Sans Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Google Sans Mono', 'JetBrains Mono', monospace;
+  --banner-bg: #131D2E;
+  --banner-warn-bg: #1F1916;
+  --banner-success-bg: #102221;
+  --footer-bg: rgba(11, 15, 25, 0.95);
+  --notes-bg: #0D131F;
+  --code-bg: #070A0F;
 }}
 
 * {{
@@ -94,6 +137,7 @@ html, body {{
   font-family: var(--font-sans);
   font-size: 18px;
   line-height: 1.45;
+  transition: background-color 0.22s ease, color 0.22s ease;
   -webkit-font-smoothing: antialiased;
 }}
 
@@ -145,8 +189,8 @@ html, body {{
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--primary);
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px solid rgba(56, 189, 248, 0.28);
+  background: var(--primary-light);
+  border: 1px solid var(--primary-border);
   padding: 5px 12px;
   border-radius: 999px;
 }}
@@ -172,23 +216,25 @@ html, body {{
 }}
 
 .sql-pill {{
-  background: rgba(56, 189, 248, 0.14);
-  color: #7DD3FC;
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
 }}
 .sql-pill:hover {{
-  background: rgba(56, 189, 248, 0.25);
+  background: var(--primary);
+  color: #FFFFFF;
   border-color: var(--primary);
   transform: translateY(-1px);
 }}
 
 .explorer-pill {{
-  background: rgba(52, 211, 153, 0.12);
-  color: #6EE7B7;
-  border: 1px solid rgba(52, 211, 153, 0.32);
+  background: var(--secondary-light);
+  color: var(--secondary);
+  border: 1px solid var(--secondary-border);
 }}
 .explorer-pill:hover {{
-  background: rgba(52, 211, 153, 0.22);
+  background: var(--secondary);
+  color: #FFFFFF;
   border-color: var(--secondary);
   transform: translateY(-1px);
 }}
@@ -331,9 +377,9 @@ strong {{
 .callout-banner {{
   position: absolute;
   inset: 0;
-  background: #131D2E;
+  background: var(--banner-bg);
   border-left: 4px solid var(--primary);
-  border-top: 1px solid rgba(56, 189, 248, 0.35);
+  border-top: 1px solid var(--primary-border);
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   border-radius: 0 12px 12px 0;
@@ -342,7 +388,7 @@ strong {{
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-md);
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
@@ -359,15 +405,15 @@ strong {{
 }}
 
 .callout-banner.warn {{
-  background: #1F1916;
+  background: var(--banner-warn-bg);
   border-left-color: var(--accent);
   border-top-color: rgba(245, 158, 11, 0.4);
 }}
 
 .callout-banner.success {{
-  background: #102221;
+  background: var(--banner-success-bg);
   border-left-color: var(--secondary);
-  border-top-color: rgba(52, 211, 153, 0.4);
+  border-top-color: var(--secondary-border);
 }}
 
 /* Code Walkthrough Layouts */
@@ -380,7 +426,7 @@ strong {{
 }}
 
 .code-box {{
-  background: #070A0F;
+  background: var(--code-bg);
   border: 1.5px solid var(--border);
   border-radius: 14px;
   padding: 18px 20px;
@@ -398,19 +444,19 @@ strong {{
   padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
   white-space: pre-wrap;
 }}
 
 .code-chunk.is-spotlight {{
-  background: rgba(56, 189, 248, 0.09);
-  border-color: var(--primary) !important;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: #38BDF8 !important;
 }}
 
 .kw {{ color: #38BDF8; font-weight: 700; }}
 .fn {{ color: #F472B6; font-weight: 600; }}
 .str {{ color: #34D399; }}
-.cm {{ color: #64748B; font-style: italic; }}
+.cm {{ color: #94A3B8; font-style: italic; }}
 .num {{ color: #FBBF24; }}
 
 /* Bottom Navigation Bar */
@@ -420,7 +466,7 @@ strong {{
   left: 0;
   right: 0;
   height: 54px;
-  background: rgba(11, 15, 23, 0.92);
+  background: var(--footer-bg);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--border);
   display: flex;
@@ -493,7 +539,7 @@ strong {{
   left: 0;
   right: 0;
   height: 3px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--border);
   z-index: 51;
 }}
 
@@ -510,11 +556,11 @@ strong {{
   left: 28px;
   right: 28px;
   bottom: 64px;
-  background: #0D131F;
+  background: var(--notes-bg);
   border: 2px solid var(--primary);
   border-radius: 14px;
   padding: 22px 28px;
-  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.9);
+  box-shadow: var(--shadow-md);
   transform: translateY(calc(100% + 90px));
   opacity: 0;
   visibility: hidden;
@@ -685,7 +731,7 @@ strong {{
       </p>
 
       <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
-        <button class="nav-btn" onclick="next()" style="background: var(--primary); color: #0B0F17; font-weight: 700; padding: 12px 24px; font-size: 0.95rem; border: none;">
+        <button class="nav-btn" onclick="next()" style="background: var(--primary); color: #FFFFFF; font-weight: 700; padding: 12px 24px; font-size: 0.95rem; border: none;">
           Start Progressive Walkthrough →
         </button>
         <button class="sql-pill" onclick="openSqlModal('50_candidates')" style="padding: 12px 20px; font-size: 0.88rem;">
@@ -694,6 +740,9 @@ strong {{
         <a class="explorer-pill" href="demo/explorer/index.html" target="_blank" style="padding: 12px 20px; font-size: 0.88rem;">
           Open Live Stage Explorer ↗
         </a>
+        <button class="nav-btn" onclick="toggleTheme()" id="hero-theme-btn" style="padding: 12px 18px; font-size: 0.88rem;">
+          🌙 / ☀️ Toggle Theme (T)
+        </button>
         <button class="nav-btn" onclick="openPresenterView()" style="padding: 12px 18px; font-size: 0.88rem;">
           Presenter View (P)
         </button>
@@ -1085,8 +1134,8 @@ strong {{
        ===================================================================== -->
   <div class="s" data-idx="7" data-steps="2" data-sql-stage="30_embed"
        data-notes="<strong>Step 0:</strong> How do we generate semantic embeddings without building a fragile Airflow/Spark ML pipeline?"
-       data-notes-1="<strong>Step 1 (Autonomous Embedding Generation):</strong> In Stage 30, ML.GENERATE_EMBEDDING creates 768-dimensional text-embedding-005 vectors directly over our standardised match_key column."
-       data-notes-2="<strong>Step 2 (Vector Indexing & Replay Mode):</strong> Stage 35 builds an IVF/TreeAH vector index for sub-second ANN search. Plus, our demo's --replay-ai flag caches embeddings in BigQuery so live re-runs finish in 15 seconds.">
+       data-notes-1="<strong>Step 1 (Autonomous Embedding Generation):</strong> In Stage 30, AI.EMBED creates semantic vectors via gemini-embedding-001 directly over our standardised match_key column."
+       data-notes-2="<strong>Step 2 (Vector Indexing & Replay Mode):</strong> Stage 35 builds a TREE_AH / IVF vector index for sub-second ANN search. Plus, our demo's --replay-ai flag caches embeddings in BigQuery so live re-runs finish in 15 seconds.">
     <div class="slide-header">
       <div class="header-top">
         <span class="badge">LAYER 03 · GROUND (AUTONOMOUS EMBEDDINGS)</span>
@@ -1100,20 +1149,20 @@ strong {{
 
     <div class="code-split">
       <div class="code-box scaffold-group">
-        <div class="code-chunk" data-active-step="1"><span class="cm">-- Stage 30: Generate 768-d semantic embeddings via Vertex AI text-embedding-005</span>
+        <div class="code-chunk" data-active-step="1"><span class="cm">-- Stage 30: Generate semantic embeddings via Vertex AI gemini-embedding-001</span>
 <span class="kw">CREATE OR REPLACE TABLE</span> `cdp.party_embeddings` <span class="kw">AS</span>
 <span class="kw">SELECT</span> record_id, source_system, match_key,
-  ml_generate_embedding_result <span class="kw">AS</span> embedding
-<span class="kw">FROM</span> <span class="fn">ML.GENERATE_EMBEDDING</span>(
-  <span class="kw">MODEL</span> `cdp.embedding_model`,
-  (<span class="kw">SELECT</span> record_id, source_system, match_key <span class="kw">FROM</span> `cdp.party_standardised`),
-  <span class="kw">STRUCT</span>(<span class="kw">TRUE</span> <span class="kw">AS</span> flatten_json_output, <span class="str">'RETRIEVAL_DOCUMENT'</span> <span class="kw">AS</span> task_type)
-);</div>
+  <span class="fn">AI.EMBED</span>(
+    match_key,
+    connection_id =&gt; <span class="str">'cdp-conn'</span>,
+    endpoint      =&gt; <span class="str">'gemini-embedding-001'</span>
+  ).result <span class="kw">AS</span> embedding
+<span class="kw">FROM</span> `cdp.party_standardised`;</div>
 
         <div class="code-chunk" data-active-step="2"><span class="cm">-- Stage 35: Build BigQuery Vector Index + Search Index for Hybrid Retrieval</span>
 <span class="kw">CREATE OR REPLACE VECTOR INDEX</span> `party_vec_idx`
 <span class="kw">ON</span> `cdp.party_embeddings`(embedding)
-<span class="kw">OPTIONS</span>(index_type = <span class="str">'IVF'</span>, distance_type = <span class="str">'COSINE'</span>);
+<span class="kw">OPTIONS</span>(index_type = <span class="str">'TREE_AH'</span>, distance_type = <span class="str">'COSINE'</span>);
 
 <span class="kw">CREATE SEARCH INDEX</span> `party_text_idx` <span class="kw">ON</span> `cdp.party_embeddings`(match_key);</div>
       </div>
@@ -1121,13 +1170,13 @@ strong {{
       <div style="display: flex; flex-direction: column; gap: 18px;">
         <div class="card" data-build="1">
           <div class="card-tag">SEMANTIC REPRESENTATION</div>
-          <h3>Phonetic &amp; Nickname Resilience</h3>
-          <p class="card-desc"><strong>Dense 768-d vectors:</strong> Maps <code>&quot;Jon Smyth, Sydney&quot;</code> and <code>&quot;Jonathan Smith, Newtown&quot;</code> to nearby points in vector space.</p>
+          <h3>gemini-embedding-001 Vectors</h3>
+          <p class="card-desc"><strong>Phonetic &amp; nickname resilience:</strong> Maps <code>&quot;Jon Smyth, Sydney&quot;</code> and <code>&quot;Jonathan Smith, Newtown&quot;</code> to nearby points in vector space.</p>
         </div>
 
         <div class="card" data-build="2">
           <div class="card-tag">DUAL INDEXING INFRASTRUCTURE</div>
-          <h3>IVF Vector + Inverted Text Index</h3>
+          <h3>TREE_AH Vector + Inverted Text Index</h3>
           <p class="card-desc"><strong>Sub-second candidate retrieval:</strong> Enables simultaneous cosine similarity search and BM25 keyword token matching.</p>
         </div>
       </div>
@@ -1199,10 +1248,10 @@ strong {{
        SLIDE 9: THE ADJUDICATOR + COST FUNNEL (60_adjudicate.sql)
        ===================================================================== -->
   <div class="s" data-idx="9" data-steps="3" data-sql-stage="60_adjudicate"
-       data-notes="<strong>Step 0:</strong> Calling an LLM on every candidate pair in a 15-million record enterprise corpus would cost hundreds of thousands of dollars. Here is how our two-threshold funnel makes Gemini economically viable."
+       data-notes="<strong>Step 0:</strong> Calling an LLM on every candidate pair in a 15-million record enterprise corpus would cost hundreds of thousands of dollars. Here is how our two-threshold funnel makes Gemini 3.5 Flash economically viable."
        data-notes-1="<strong>Step 1 (Tier 1 Auto-Match >= 0.72):</strong> 85% of true pairs score above tau_hi (0.72) via exact email/phone or high-IDF surname + DOB. They auto-merge at $0 LLM cost."
-       data-notes-2="<strong>Step 2 (Tier 2 Grey Zone 0.40 to 0.72):</strong> Only the ambiguous 2% to 12% of candidate pairs enter the grey zone and invoke AI.GENERATE with Gemini 2.5 Flash."
-       data-notes-3="<strong>Step 3 (Tier 3 Auto-Reject < 0.40):</strong> Pairs below tau_lo (0.40) are discarded immediately. As proven in 96_cost_model.sql, adjudicating a 15M-record enterprise corpus costs under $150 total!">
+       data-notes-2="<strong>Step 2 (Tier 2 Grey Zone 0.40 to 0.72):</strong> Only the ambiguous 2% to 12% of candidate pairs enter the grey zone and invoke AI.GENERATE with pinned Gemini 3.5 Flash (gemini-3.5-flash)."
+       data-notes-3="<strong>Step 3 (Tier 3 Auto-Reject < 0.40):</strong> Pairs below tau_lo (0.40) are discarded immediately. As proven in 96_cost_model.sql, adjudicating a 15M-record enterprise corpus with Gemini 3.5 Flash costs under $150 total!">
     <div class="slide-header">
       <div class="header-top">
         <span class="badge">LAYER 03 · LLM ADJUDICATION &amp; COST FUNNEL</span>
@@ -1211,7 +1260,7 @@ strong {{
           <button class="sql-pill" onclick="openSqlModal('96_cost_model')">&lt;/&gt; View 96_cost_model.sql</button>
         </div>
       </div>
-      <h2>Two-threshold filtering routes only the ambiguous grey zone to Gemini adjudication</h2>
+      <h2>Two-threshold filtering routes only the ambiguous grey zone to Gemini 3.5 Flash</h2>
     </div>
 
     <div class="grid-3 scaffold-group" style="margin-top: 16px;">
@@ -1227,8 +1276,8 @@ strong {{
       <div class="card" data-active-step="2,3" style="border-color: var(--primary); border-width: 2px;">
         <div>
           <div class="card-tag" style="color: var(--primary);">TIER 2 · GREY ZONE (0.40 ≤ S &lt; 0.72)</div>
-          <h3>Gemini 2.5 Flash Adjudicator</h3>
-          <p class="card-desc"><strong>Surgical AI judgement:</strong> Only ambiguous pairs invoke <code>AI.GENERATE</code> with structured JSON output schema.</p>
+          <h3>Gemini 3.5 Flash Adjudicator</h3>
+          <p class="card-desc"><strong>Surgical AI judgement:</strong> Only ambiguous pairs invoke <code>AI.GENERATE</code> (pinned <code>gemini-3.5-flash</code>) with structured JSON schema.</p>
         </div>
         <div class="card-metric" style="color: var(--primary);">~12% · Pennies / 1k</div>
       </div>
@@ -1700,6 +1749,7 @@ triangle_edges <span class="kw">AS</span> (
   </div>
 
   <div class="footer-right">
+    <button class="nav-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle Light/Dark Theme (T)">🌙 Dark (T)</button>
     <button class="sql-pill" onclick="openSqlModal()" title="Toggle Production BigQuery SQL Drawer (S)">&lt;/&gt; Production SQL (S)</button>
     <a class="explorer-pill" href="demo/explorer/index.html" target="_blank" title="Open Interactive Stage Explorer">Stage Explorer ↗</a>
     <button class="nav-btn" onclick="toggleNotes()" title="Toggle Speaker Notes (N)">Notes (N)</button>
@@ -1722,7 +1772,7 @@ triangle_edges <span class="kw">AS</span> (
     <div class="sql-modal-header">
       <div style="display: flex; align-items: center; gap: 12px;">
         <span class="badge">PRODUCTION BIGQUERY SQL PIPELINE</span>
-        <strong id="sql-modal-title" style="font-family: var(--font-mono); font-size: 0.95rem; color: var(--text);">50_candidates.sql</strong>
+        <strong id="sql-modal-title" style="font-family: var(--font-mono); font-size: 0.95rem; color: #F8FAFC;">50_candidates.sql</strong>
       </div>
       <div style="display: flex; align-items: center; gap: 10px;">
         <button class="nav-btn" onclick="copyCurrentSql()" id="copy-sql-btn">Copy SQL</button>
@@ -1747,8 +1797,27 @@ const STAGE_ORDER = [
 const slides = Array.from(document.querySelectorAll('.s'));
 let curSlide = 0;
 let curStep = 0;
+let curTheme = localStorage.getItem('deck_theme') || 'light';
 let activeSqlStage = '50_candidates';
 const syncChannel = new BroadcastChannel('html_deck_sync');
+
+function setTheme(theme, broadcast = true) {{
+  curTheme = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', curTheme);
+  localStorage.setItem('deck_theme', curTheme);
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = curTheme === 'dark' ? '☀️ Light (T)' : '🌙 Dark (T)';
+  const heroBtn = document.getElementById('hero-theme-btn');
+  if (heroBtn) heroBtn.textContent = curTheme === 'dark' ? '☀️ Switch to Light Mode (T)' : '🌙 Switch to Dark Mode (T)';
+  history.replaceState(null, '', `#s=${{curSlide}}&b=${{curStep}}&theme=${{curTheme}}`);
+  if (broadcast) {{
+    syncChannel.postMessage({{ slide: curSlide, step: curStep, theme: curTheme }});
+  }}
+}}
+
+function toggleTheme() {{
+  setTheme(curTheme === 'dark' ? 'light' : 'dark');
+}}
 
 function getMaxSteps(slideEl) {{
   return parseInt(slideEl.getAttribute('data-steps') || '0', 10);
@@ -1837,12 +1906,12 @@ function show(slideIdx, stepIdx = 0, broadcast = true) {{
     activeSqlStage = slideSql;
   }}
 
-  // 7. Update URL hash (#s=2&b=1)
-  history.replaceState(null, '', `#s=${{curSlide}}&b=${{curStep}}`);
+  // 7. Update URL hash (#s=2&b=1&theme=light)
+  history.replaceState(null, '', `#s=${{curSlide}}&b=${{curStep}}&theme=${{curTheme}}`);
 
   // 8. Broadcast state to Presenter View
   if (broadcast) {{
-    syncChannel.postMessage({{ slide: curSlide, step: curStep }});
+    syncChannel.postMessage({{ slide: curSlide, step: curStep, theme: curTheme }});
   }}
 }}
 
@@ -1993,6 +2062,7 @@ function openPresenterView() {{
 window.getDeckState = () => ({{
   curSlide,
   curStep,
+  curTheme,
   totalSlides: slides.length,
   maxSteps: getMaxSteps(slides[curSlide]),
   notes: slides[curSlide].getAttribute(`data-notes-${{curStep}}`) || slides[curSlide].getAttribute('data-notes') || '',
@@ -2000,8 +2070,13 @@ window.getDeckState = () => ({{
 }});
 
 syncChannel.onmessage = (event) => {{
-  if (event.data && typeof event.data.slide === 'number') {{
-    show(event.data.slide, event.data.step || 0, false);
+  if (event.data) {{
+    if (event.data.theme && event.data.theme !== curTheme) {{
+      setTheme(event.data.theme, false);
+    }}
+    if (typeof event.data.slide === 'number') {{
+      show(event.data.slide, event.data.step || 0, false);
+    }}
   }}
 }};
 
@@ -2029,14 +2104,19 @@ window.addEventListener('keydown', (e) => {{
   }} else if (e.key === 'p' || e.key === 'P') {{
     e.preventDefault();
     openPresenterView();
+  }} else if (e.key === 't' || e.key === 'T') {{
+    e.preventDefault();
+    toggleTheme();
   }}
 }});
 
-// Initialize from URL hash if present (#s=2&b=1)
+// Initialize from URL hash if present (#s=2&b=1&theme=light)
 window.addEventListener('DOMContentLoaded', () => {{
   const params = new URLSearchParams(window.location.hash.replace('#', ''));
   const initialSlide = parseInt(params.get('s') || '0', 10);
   const initialStep = parseInt(params.get('b') || '0', 10);
+  const initialTheme = params.get('theme') || localStorage.getItem('deck_theme') || 'light';
+  setTheme(initialTheme, false);
   show(isNaN(initialSlide) ? 0 : initialSlide, isNaN(initialStep) ? 0 : initialStep);
 }});
 </script>
