@@ -59,67 +59,108 @@ def build_html():
 {fonts_css}
 
 :root {{
-  /* Light Mode Default (per html-presentation skill Step 1d) */
-  --bg: #F8FAFC;
+  /* Google Cloud Light Mode (GM3 Console & Briefings — Default) */
+  --bg: #F8F9FA;
   --surface: #FFFFFF;
-  --surface-alt: #F1F5F9;
-  --surface-hover: #E2E8F0;
-  --border: #CBD5E1;
-  --text: #0F172A;
-  --text-secondary: #334155;
-  --text-muted: #64748B;
-  --primary: #2563EB;      /* Core brand/structure */
-  --primary-light: rgba(37, 99, 235, 0.10);
-  --primary-border: rgba(37, 99, 235, 0.30);
-  --secondary: #0D9488;    /* Positive/survivorship contrast */
-  --secondary-light: rgba(13, 148, 136, 0.10);
-  --secondary-border: rgba(13, 148, 136, 0.30);
-  --accent: #D97706;       /* Spotlight / callout highlight */
-  --accent-light: rgba(217, 119, 6, 0.12);
-  --danger: #DC2626;       /* Trap / warning highlight */
+  --surface-alt: #F1F3F4;
+  --surface-hover: #E8EAED;
+  --border: #DADCE0;
+  --text: #202124;
+  --text-secondary: #5F6368;
+  --text-muted: #80868B;
+
+  /* Core Google Cloud Semantic Accents */
+  --gcp-blue: #1A73E8;
+  --gcp-blue-light: #E8F0FE;
+  --gcp-green: #1E8E3E;
+  --gcp-green-light: #E6F4EA;
+  --gcp-yellow: #F9AB00;
+  --gcp-yellow-light: #FEF7E0;
+  --gcp-red: #D93025;
+  --gcp-red-light: #FCE8E6;
+
+  /* Functional Aliases */
+  --primary: var(--gcp-blue);
+  --primary-light: var(--gcp-blue-light);
+  --primary-border: rgba(26, 115, 232, 0.32);
+  --secondary: var(--gcp-green);
+  --secondary-light: var(--gcp-green-light);
+  --secondary-border: rgba(30, 142, 62, 0.32);
+  --accent: var(--gcp-yellow);
+  --accent-light: var(--gcp-yellow-light);
+  --danger: var(--gcp-red);
+  --danger-light: var(--gcp-red-light);
+
   --dim-opacity: 0.22;     /* Opacity for inactive context during builds */
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.10);
-  --shadow-spotlight: 0 12px 32px -4px rgba(37, 99, 235, 0.24);
-  --banner-bg: #EFF6FF;
-  --banner-warn-bg: #FFFBEB;
-  --banner-success-bg: #F0FDFA;
-  --footer-bg: rgba(255, 255, 255, 0.95);
+  --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.1), 0 1px 3px 1px rgba(60, 64, 67, 0.06);
+  --shadow-md: 0 4px 12px rgba(60, 64, 67, 0.12);
+  --shadow-spotlight: 0 12px 28px -4px rgba(26, 115, 232, 0.24);
+  --gcp-four-color: linear-gradient(90deg, #4285F4 0% 25%, #EA4335 25% 50%, #FBBC04 50% 75%, #34A853 75% 100%);
+
+  --banner-bg: #E8F0FE;
+  --banner-warn-bg: #FEF7E0;
+  --banner-success-bg: #E6F4EA;
+  --footer-bg: rgba(255, 255, 255, 0.96);
   --notes-bg: #FFFFFF;
-  --code-bg: #0F172A;
+  --code-bg: #131822;
   --font-sans: 'Google Sans', 'Google Sans Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'Google Sans Mono', 'JetBrains Mono', monospace;
+  --font-mono: 'Google Sans Mono', 'Roboto Mono', 'JetBrains Mono', monospace;
 }}
 
 :root[data-theme="dark"] {{
-  /* Dark Mode Tokens */
-  --bg: #0B0F19;
-  --surface: #151C2C;
-  --surface-alt: #1E293B;
-  --surface-hover: #26354D;
-  --border: #334155;
-  --text: #F8FAFC;
-  --text-secondary: #CBD5E1;
-  --text-muted: #94A3B8;
-  --primary: #38BDF8;
-  --primary-light: rgba(56, 189, 248, 0.14);
-  --primary-border: rgba(56, 189, 248, 0.35);
-  --secondary: #34D399;
-  --secondary-light: rgba(52, 211, 153, 0.14);
-  --secondary-border: rgba(52, 211, 153, 0.35);
-  --accent: #F59E0B;
-  --accent-light: rgba(245, 158, 11, 0.15);
-  --danger: #F87171;
+  /* Google Cloud Dark Mode (Cloud Next & Developer Dark) */
+  --bg: #131822;
+  --surface: #1C2331;
+  --surface-alt: #252E40;
+  --surface-hover: #2E3A50;
+  --border: #3C4043;
+  --text: #E8EAED;
+  --text-secondary: #9AA0A6;
+  --text-muted: #80868B;
+
+  /* Dark-Adapted Google Cloud Pastels */
+  --gcp-blue: #8AB4F8;
+  --gcp-blue-light: rgba(138, 180, 248, 0.15);
+  --gcp-green: #81C995;
+  --gcp-green-light: rgba(129, 201, 149, 0.15);
+  --gcp-yellow: #FDD663;
+  --gcp-yellow-light: rgba(253, 214, 99, 0.15);
+  --gcp-red: #F28B82;
+  --gcp-red-light: rgba(242, 139, 130, 0.15);
+
+  --primary: var(--gcp-blue);
+  --primary-light: var(--gcp-blue-light);
+  --primary-border: rgba(138, 180, 248, 0.35);
+  --secondary: var(--gcp-green);
+  --secondary-light: var(--gcp-green-light);
+  --secondary-border: rgba(129, 201, 149, 0.35);
+  --accent: var(--gcp-yellow);
+  --accent-light: var(--gcp-yellow-light);
+  --danger: var(--gcp-red);
+  --danger-light: var(--gcp-red-light);
+
   --dim-opacity: 0.20;
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
-  --shadow-spotlight: 0 12px 34px -4px rgba(56, 189, 248, 0.32);
-  --banner-bg: #131D2E;
-  --banner-warn-bg: #1F1916;
-  --banner-success-bg: #102221;
-  --footer-bg: rgba(11, 15, 25, 0.95);
-  --notes-bg: #0D131F;
-  --code-bg: #070A0F;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-spotlight: 0 12px 32px -4px rgba(138, 180, 248, 0.32);
+
+  --banner-bg: #1A2436;
+  --banner-warn-bg: #262016;
+  --banner-success-bg: #162621;
+  --footer-bg: rgba(19, 24, 34, 0.96);
+  --notes-bg: #1C2331;
+  --code-bg: #0D1117;
+}}
+
+/* Signature 4-Color Google Cloud Top Brand Ribbon */
+.gcp-ribbon {{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gcp-four-color);
+  z-index: 95;
 }}
 
 * {{
@@ -542,7 +583,7 @@ strong {{
 
 .progress-fill {{
   height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  background: var(--gcp-four-color);
   width: 0%;
   transition: width 0.25s ease;
 }}
@@ -717,7 +758,7 @@ strong {{
 </style>
 </head>
 <body>
-
+<div class="gcp-ribbon"></div>
 <div class="deck" id="deck">
 
   <!-- =====================================================================

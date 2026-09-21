@@ -38,19 +38,19 @@ body.dark{
   --blue-d:#8AB4F8; --green-d:#81C995; --red-d:#F28B82; --yellow-d:#FDD663;
 
   --ink:#E8EAED; --grey:#9AA0A6; --grey2:#80868B; --line:#3C4043;
-  --bg:#17181A; --soft:#202124; --soft2:#282A2D;
+  --bg:#131822; --soft:#1C2331; --soft2:#252E40;
 
-  --panel:#1E1F21;
-  --rail-bg:#202124;
-  --chip-bg:#2D2F31;
+  --panel:#1C2331;
+  --rail-bg:#171E2B;
+  --chip-bg:#252E40;
   --chip-ink:#C4C7C5;
-  --sel-bg:#28344A;
-  --sel-ink:#AECBFA;
+  --sel-bg:rgba(138, 180, 248, 0.15);
+  --sel-ink:#8AB4F8;
   --accent:#8AB4F8;
-  --shadow:0 1px 2px rgba(0,0,0,.6), 0 1px 3px 1px rgba(0,0,0,.4);
+  --shadow:0 1px 3px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.5);
   --shadow-soft:0 1px 2px rgba(0,0,0,.4);
 
-  --code-bg:#202124;
+  --code-bg:#0D1117;
   --kw:#8AB4F8; --str:#81C995; --com:#80868B; --num:#F28B82; --fn:#D7AEFB;
 }
 
@@ -68,6 +68,8 @@ a{color:var(--accent)}
 /* ---------------- header ---------------- */
 header{
   display:flex; align-items:center; gap:20px; padding:14px 28px;
+  border-top:4px solid transparent;
+  border-image:linear-gradient(90deg, #4285F4 0% 25%, #EA4335 25% 50%, #FBBC04 50% 75%, #34A853 75% 100%) 1;
   border-bottom:1px solid var(--line); background:var(--panel);
 }
 .brand{display:flex;align-items:baseline;gap:12px;min-width:0}
