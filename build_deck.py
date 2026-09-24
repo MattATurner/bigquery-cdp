@@ -55,6 +55,8 @@ def build_html():
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Composable CDP — MDM at the Core (BigQuery Native)</title>
+<meta name="description" content="Master Data Management built 100% natively inside BigQuery — zero data movement, hybrid vector + BM25 retrieval, Fellegi–Sunter IDF scoring, and explainable Gemini 3.5 Flash adjudication.">
+<meta name="tags" content="BigQuery, Composable CDP, Master Data Management, Vertex AI, Gemini 3.5 Flash">
 <style>
 {fonts_css}
 
@@ -1569,7 +1571,7 @@ triangle_edges <span class="kw">AS</span> (
   <div class="s" data-idx="13" data-steps="2"
        data-notes="<strong>Step 0:</strong> Every company is building AI agents. Why do customer-facing agents give wrong answers?"
        data-notes-1="<strong>Step 1 (Left Section — Knows Who the Customer Is):</strong> Without a matched golden profile, an AI agent sees only 1 of the customer's 4 accounts—missing their open support ticket or VIP status."
-       data-notes-2="<strong>Step 2 (Right Section — Knows What the Columns Mean):</strong> Pairing the BigQuery Golden Profile with Dataplex Knowledge Catalog gives the AI agent both the right customer AND verified business definitions.">
+       data-notes-2="<strong>Step 2 (Right Section — Knows What the Columns Mean):</strong> Pairing the BigQuery Golden Profile with BigQuery Knowledge Catalog gives the AI agent both the right customer AND verified business definitions.">
     <div class="slide-header">
       <div class="header-top">
         <span class="badge">IDENTITY + BUSINESS MEANING</span>
@@ -1589,7 +1591,7 @@ triangle_edges <span class="kw">AS</span> (
 
       <div class="card" data-active-step="2" style="border-color: var(--secondary);">
         <div>
-          <div class="card-tag" style="color: var(--secondary);">PILLAR 2 · DATAPLEX KNOWLEDGE CATALOG</div>
+          <div class="card-tag" style="color: var(--secondary);">PILLAR 2 · BIGQUERY KNOWLEDGE CATALOG</div>
           <h3 style="font-size: 1.35rem; margin-bottom: 14px;">Knows <em>What</em> the Columns Mean</h3>
           <p class="card-desc" style="margin-bottom: 14px;"><strong>Clear business glossary:</strong> Tells the agent the official meaning, owner, and quality score for every table column.</p>
           <p class="card-desc"><strong>Stops guessed SQL queries:</strong> Agents query approved views with verified consent flags instead of guessing raw table names.</p>
@@ -1703,7 +1705,7 @@ triangle_edges <span class="kw">AS</span> (
           <h3>2. Hide PII by User Role</h3>
           <p class="card-desc"><strong>Mask sensitive columns in place:</strong> Analysts can count <code>person_id</code> segments while BigQuery hides raw birth dates and tax IDs.</p>
         </div>
-        <div style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--primary); margin-top: 12px;">Dataplex Policy Tags + RLS</div>
+        <div style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--primary); margin-top: 12px;">Knowledge Catalog Policy Tags + RLS</div>
       </div>
 
       <div class="card" data-active-step="3">
@@ -2187,6 +2189,13 @@ window.addEventListener('keydown', (e) => {{
 
 // Initialize from URL hash if present (#s=2&b=1&theme=light)
 window.addEventListener('DOMContentLoaded', () => {{
+  // Auto-route Stage Explorer links to /p/explorer when hosted on Cloud Run Presentation Server
+  if (window.location.pathname.startsWith('/p/') || window.location.hostname.includes('run.app')) {{
+    document.querySelectorAll('a[href^="demo/explorer/index.html"]').forEach(a => {{
+      const hash = a.getAttribute('href').split('#')[1] || '';
+      a.setAttribute('href', '/p/explorer' + (hash ? '#' + hash : ''));
+    }});
+  }}
   const params = new URLSearchParams(window.location.hash.replace('#', ''));
   const initialSlide = parseInt(params.get('s') || '0', 10);
   const initialStep = parseInt(params.get('b') || '0', 10);
