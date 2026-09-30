@@ -25,12 +25,14 @@ OUT_HTML = os.path.join(ROOT, "index.html")
 
 
 def extract_embedded_fonts():
-  if not os.path.exists(ARCHIVE_DECK):
-    return ""
-  with open(ARCHIVE_DECK, encoding="utf-8") as f:
-    text = f.read()
-  fonts = re.findall(r"@font-face\{[^}]+\}", text)
-  return "\n".join(fonts)
+  for candidate in (ARCHIVE_DECK, OUT_HTML):
+    if os.path.exists(candidate):
+      with open(candidate, encoding="utf-8") as f:
+        text = f.read()
+      fonts = re.findall(r"@font-face\{[^}]+\}", text)
+      if fonts:
+        return "\n".join(fonts)
+  return ""
 
 
 def load_hero_b64():

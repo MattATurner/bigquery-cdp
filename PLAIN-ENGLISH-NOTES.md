@@ -195,6 +195,20 @@ Finance, marketing and the board frequently have three different definitions. If
 
 Knowledge Catalog is where those agreed definitions live, alongside a record of where every figure came from. That second part does double duty: it grounds the AI *and* it satisfies auditors.
 
+### 7. "Why didn't you train a Graph Neural Network (GraphSAGE) to link records?"
+
+You may hear data scientists propose a **Graph Neural Network (GNN)** — specifically an algorithm called **GraphSAGE** — to resolve customer identities. Here is what that actually does in plain English, and why we compute the exact same signal directly in BigQuery SQL without a neural network training pipeline:
+
+1. **What the graph is:** Imagine drawing lines between customer records and their identifiers (emails, phone numbers, loyalty cards).
+   - **1 hop** is the shared identifier connecting two records (e.g., Record A and Record B both link to `thegills@gmail.com`).
+   - **2 hops** is looking at the *other* identifiers attached to Record A and Record B (the neighbour's neighbours).
+2. **Why naive graphs collapse into a "hairball":** If a store checkout kiosk email (`kiosk.mel@store-checkout.com.au`) is used on 559 receipts, a naive graph merges all 559 strangers into one giant cluster — and when those people touch other kiosks, **5,195 profiles collapse into a single "hairball" (`0.06%` accuracy)**.
+3. **What GraphSAGE actually learns:** A 2-layer GraphSAGE model looks 1 hop and 2 hops out from each record to learn two things:
+   - *1-hop rarity:* Is this shared email rare (used by 2 records) or a promiscuous store kiosk (used by 559 records)?
+   - *2-hop conflicts:* Do Record A and Record B also have *different* personal mobile numbers or *different* first names in their 2-hop neighbourhood (like two siblings sharing a family email)?
+4. **Why we don't need a PyTorch training pipeline to know that:** In a customer database, we already know what an email, phone number, and first name are! Instead of exporting data to GPUs, training a black-box neural network, and dealing with stale node embeddings every time a new customer signs up, we calculate **1-hop Inverse Document Frequency rarity (`idf_weight`)** and **2-hop neighbourhood conflicts (`unshared_email_both`, `unshared_phone_both`, `forename_conflict`)** directly in SQL (`40_block.sql` and `50_candidates.sql`).
+5. **Best of breed when combined with Search + AI Adjudicator:** A graph model can only score records that already share an exact identifier. By combining **2-Hop SQL Graph Features** with **Hybrid Search (`AI.SEARCH` + RRF)** and **Gemini 2.5 Flash Adjudication**, we catch misspelled and transliterated names that share *no* exact identifier, while cutting false positives from `321` (graph rarity alone) down to **`45` (`99.46%` precision)** — with **zero false positives across all 16 planted hard-case scenarios**.
+
 ---
 
 ## What happens when it gets something wrong?
@@ -213,9 +227,8 @@ The comparison worth making is not "AI versus perfect". It's "AI versus a rules 
 ## Honest caveats to state out loud
 
 - **Two capabilities are in Preview** (pre-general-release): the combined search method, and reading data directly from other clouds. Neither sits in the critical path — the core identity engine uses fully released features only.
-- **The percentages on the funnel slide are illustrative**, not measured. Real figures depend on your data quality and come out of the pilot.
-- **There is no ready-made screen for data stewards.** Reviewing uncertain cases needs a small interface built, or integration with a tool you already have.
-- **The only firm number in the deck** is a published performance figure from Google. Everything else is deliberately left to be measured on your data.
+- **The funnel and benchmark figures are measured on the 20,000-record synthetic corpus (`all-things-cdp.cdp`)**: `99.61%` of candidate pairs are settled deterministically (`0.04%` auto-match, `99.57%` auto-reject), and only `0.39%` (`41,769` pairs) are sent to Gemini 2.5 Flash — costing **`$0.085` in total AI model spend** for the 20,000-record run.
+- **Data stewards have two interactive interfaces in the repo:** the **5-Act Notebook Suite** (`demo/notebooks/`) and the **Google ADK Explainer Agent** (`demo/agents/explainer_agent/`).
 
 ---
 
@@ -225,13 +238,18 @@ The comparison worth making is not "AI versus perfect". It's "AI versus a rules 
 | :--- | :--- |
 | Golden record | The single combined profile for one real person |
 | Identity resolution / MDM | Working out which records describe the same person |
+| Bipartite identifier graph | A diagram connecting customer records to their emails, phones, and loyalty cards |
+| Promiscuous hub / Hairball | A shared kiosk email or call-centre phone number that accidentally chains thousands of strangers into one giant cluster |
+| IDF rarity (`idf_weight`) | Scoring an identifier by how rare it is — a personal email scores high; a store kiosk email scores near zero |
+| 2-hop neighbourhood | Checking whether two records that share one detail (like a family email) have *conflicting* details one step further out (like different mobile numbers or first names) |
 | Embedding / vector | A "meaning fingerprint" that lets you find similar records |
 | Hybrid search | Using meaning-based and exact-match search together |
 | Reciprocal Rank Fusion (RRF) | The method for merging two result lists — uses each record's *position* in each list, not the raw scores |
 | Adjudicator | The AI that decides the genuinely ambiguous cases |
-| Grey zone | The ambiguous minority of cases needing real judgement |
+| Grey zone | The ambiguous minority of cases (`0.39%`) needing real judgement |
+| Pass-2 Contradiction Guard | Checking a merged group of records to make sure two siblings didn't get bridged together through an initial-only record (`M Davenport`) |
 | Survivorship | The rules deciding which value wins when sources disagree |
-| Cluster / graph | A group of records all determined to be the same person |
+| `GRAPH_EXPAND` / Semantic Graph | BigQuery's built-in way to total up customer numbers across a graph without accidentally double-counting people who have multiple emails |
 | Over-merge | Wrongly combining two different people |
 | Lineage | The trail showing where a piece of data came from |
 | Reverse ETL | Pushing the finished profile back out to the systems that use it |
@@ -245,16 +263,16 @@ The comparison worth making is not "AI versus perfect". It's "AI versus a rules 
 Yes — and it was the right idea. It failed on cost, and on the fact that nobody could explain its decisions. Both of those constraints have genuinely changed.
 
 **"How much will the AI cost?"**
-Only the ambiguous minority goes near it, and there's a cheaper pre-filter before that. We model the actual figure in the pilot rather than guessing now.
+Only the ambiguous `0.39%` minority goes near it. On our 20,000-record benchmark corpus, the entire AI run costs **`$0.085`** (`~$63.80` extrapolated linearly to 15 million records).
 
 **"Can we keep our existing CDP?"**
 Yes. The golden record moves to BigQuery; your existing tool becomes one of the places you send it.
 
 **"What if the AI hallucinates a merge?"**
-It doesn't merge anything unilaterally. It proposes, with a confidence score. Low confidence goes to a human, everything is logged, and anything can be undone.
+It doesn't merge anything unilaterally. It proposes, with a confidence score. Low confidence goes to a human, Pass-2 Contradiction Pruning blocks transitive sibling collisions, everything is logged, and anything can be undone.
 
 **"Why will our audience numbers go down?"**
-Because some of the people in the old number were duplicates, and some you didn't have permission to contact. See the consent section.
+Because some of the people in the old number were duplicates, and some you didn't have permission to contact (`9.37%` of a naive union email marketing list had explicitly withdrawn consent on another record). See the consent section.
 
 **"Is this real customer data? That looks like a real person."**
 No. Every record in the demo is synthetic — generated, not sampled from anyone's systems. Say so plainly, and say it before anyone has to ask.

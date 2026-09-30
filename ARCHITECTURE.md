@@ -1,13 +1,13 @@
 # Composable CDP on Google Cloud — Architecture Specification
 
-**Version:** 0.1 · **Status:** Reference design · **Owner:** mattturner
+**Version:** 2.0 · **Status:** Reference design & verified BigQuery implementation (`all-things-cdp.cdp`) · **Owner:** mattturner
 
-The keystone of this design is **Master Data Management (Customer)** implemented natively in BigQuery. Layers 1, 2, 4 and 5 are conventional; **Layer 3 (Ground) is where the differentiation lives** and is specified in the most depth.
+The keystone of this design is **Master Data Management (Customer)** implemented 100% natively in BigQuery — combining **Bipartite Identifier Graph Rarity & 2-Hop Neighbourhood Features**, **Hybrid Search (`AI.SEARCH` / `VECTOR_SEARCH` + RRF)**, **Gemini 2.5 Flash Adjudication (`AI.GENERATE`)**, **Pass-2 Transitive Contradiction Pruning**, and **Declarative Semantic Property Graphs (`CREATE OR REPLACE PROPERTY GRAPH` + `GRAPH_EXPAND`)**. Layers 1, 2, 4 and 5 are conventional; **Layer 3 (Ground) is where the differentiation lives** and is specified in the most depth.
 
 > [!NOTE]
-> **Product naming.** This document uses the current Data Cloud names. If you are cross-referencing older material: BigLake → **Lakehouse**, BigLake Metastore → **Lakehouse runtime catalog**, Dataplex → **Knowledge Catalog**, Dataproc → **Managed Service for Apache Spark**, Composer → **Managed Service for Apache Airflow**, cross-cloud Lakehouse → **borderless Lakehouse**. The renames carry no API, SKU or functional change.
+> **Product naming.** This document uses the current Data Cloud names: **Lakehouse**, **Lakehouse runtime catalog**, **BigQuery Knowledge Catalog**, **Managed Service for Apache Spark**, **Managed Service for Apache Airflow**, and **borderless Lakehouse**.
 >
-> **Do not say "BigQuery Omni."** The cross-cloud strategy has deliberately moved away from Omni's local-compute model. Borderless Lakehouse federates remote Iceberg catalogs and caches data blocks inside Google Cloud instead of provisioning compute in the remote cloud.
+> **Cross-cloud Lakehouse.** Borderless Lakehouse federates remote Iceberg catalogs and caches data blocks inside Google Cloud instead of provisioning compute in the remote cloud.
 
 ---
 
@@ -18,10 +18,11 @@ The keystone of this design is **Master Data Management (Customer)** implemented
 | P1 | **The warehouse is the CDP** | No customer data is replicated into a vendor SaaS to be resolved. One system of record, one security perimeter. |
 | P2 | **Zero-copy wherever possible** | Object Tables for unstructured, borderless Lakehouse for other clouds and SaaS, Data Sharing and Clean Rooms for partner data. |
 | P3 | **Every identity decision is auditable** | Merge decisions are immutable rows carrying model version, prompt version, confidence and a human-readable rationale. |
-| P4 | **AI is used surgically, not universally** | A tiered funnel keeps ~85% of match decisions LLM-free. LLM inference is reserved for genuine ambiguity. |
+| P4 | **AI is used surgically, not universally** | 2-hop SQL graph features + hybrid retrieval settle **99.61%** of candidate pairs deterministically (`AUTO_MATCH` + `REJECT`). Only the **`0.39%` Grey Zone** calls Gemini 2.5 Flash. |
 | P5 | **Non-destructive by default** | Source records are never overwritten. The golden record is a materialised *view of a decision*, and unmerge is a first-class operation. |
-| P6 | **Under-merge over over-merge** | Wrongly linking two people is a privacy incident. Thresholds bias conservative. |
-| P7 | **Consent never travels across a merge** | Consent is bound to the source record and re-evaluated at profile level. |
+| P6 | **Under-merge over over-merge** | Wrongly linking two people is a privacy incident. Thresholds and the Pass-2 Contradiction Guard bias conservative (`99.46%` pairwise precision, `0` FPs across all 16 planted hard cases). |
+| P7 | **Consent never travels across a merge** | Consent is bound to the source record and re-evaluated at profile level via the Intersection Rule (Australian Privacy Act 1988). |
+| P8 | **Closed-form SQL 2-hop graph features over black-box GNN pipelines** | Bipartite identifier IDF rarity (`LN(1 + N / degree)`) and 2-hop neighbourhood divergence (`unshared_email_both`, `unshared_phone_both`) compute the exact sufficient statistics of a 2-layer GraphSAGE link predictor in pure SQL with zero GPU training or embedding staleness. |
 
 ---
 
@@ -40,36 +41,36 @@ flowchart TD
     subgraph L2["2 · PROCESS"]
         B1["Deterministic normalisation<br/>address, phone E.164, email canonicalisation,<br/>name casing, unicode folding"]
         B2["AI.PARSE_DOCUMENT / AI.CHUNK_DOCUMENT<br/>layout-aware extraction"]
-        B3["AI.GENERATE — typed entity extraction<br/>from free text"]
+        B3["AI.GENERATE — typed entity extraction<br/>from free text + prompt-injection detection"]
         B4["AI.CLASSIFY — intent, sentiment,<br/>caller role, lifecycle stage"]
     end
 
     subgraph L3["3 · GROUND — MDM Customer Engine"]
-        C1["Match key construction"]
-        C2["Autonomous Embedding Generation<br/>GENERATED ALWAYS AS AI.EMBED(...) STORED"]
-        C3["Candidate generation<br/>AI.SEARCH mode => 'HYBRID'<br/>vector + BM25, RRF reranked"]
-        C4["Tiered decisioning<br/>auto-match / grey zone / auto-reject"]
-        C5["LLM Adjudicator<br/>AI.GENERATE_TABLE → verdict, confidence,<br/>rationale, deciding_evidence"]
-        C6["BigQuery Graph<br/>CREATE PROPERTY GRAPH → connected components"]
-        C7["Survivorship → golden record<br/>+ attribute-level lineage"]
+        C1["Match key construction + Bipartite Identifier Graph<br/>(has_identifier, identifier IDF rarity, profile_projection)"]
+        C2["Autonomous Embedding Generation<br/>AI.EMBED (text-embedding-005)"]
+        C3["Two-Leg Candidate Generation<br/>Lexical Blocking + VECTOR_SEARCH / AI.SEARCH<br/>fused via Reciprocal Rank Fusion (RRF)"]
+        C4["2-Hop Neighbourhood Features + Tiered Decisioning<br/>(idf_weight_sum, unshared_*_both, forename_conflict)<br/>AUTO_MATCH / GREY_ZONE (0.39%) / REJECT"]
+        C5["LLM Adjudicator (Gemini 2.5 Flash)<br/>AI.GENERATE → verdict, confidence,<br/>rationale, decisive_evidence, contradiction"]
+        C6["Pass-2 Transitive Contradiction Guard +<br/>Native Property Graphs (cdp_identity_graph & cdp_semantic_graph)"]
+        C7["Survivorship → golden_person<br/>+ field_survivorship lineage"]
         C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7
     end
 
     subgraph L4["4 · RELATE"]
-        D1["Unified customer profile"]
-        D2["Behavioural features, RFM,<br/>BQML propensity & churn"]
-        D3["Profile embeddings —<br/>lookalike & semantic segmentation"]
-        D4["Consent & preference ledger"]
+        D1["Unified customer profile (golden_person & golden_household)"]
+        D2["Declarative Graph Measures (MEASURE() + GRAPH_EXPAND + AGG())"]
+        D3["Behavioural features, RFM & household mail deduplication"]
+        D4["Intersection Consent & preference ledger (Privacy Act 1988)"]
     end
 
     subgraph L5["5 · ACTIVATE"]
         E1["Reverse ETL → Bigtable / Spanner<br/>low-latency profile serving"]
         E2["Customer Match · DV360 · Ads Data Hub"]
-        E3["Looker semantic layer"]
-        E4["Conversational Analytics agents · AI.AGG"]
+        E3["BigQuery Studio Interactive Graph Notebooks (%%bigquery --graph)"]
+        E4["Conversational Analytics Data Agent (semantic_agent.py)<br/>& Google ADK Explainer Agent (cdp_explainer)"]
     end
 
-    CTX["CONTEXT PLANE — Knowledge Catalog<br/>business glossary · operational metadata · data lineage<br/>· data products · verified queries & semantic guardrails<br/><b>the context platform that grounds agents</b>"]
+    CTX["CONTEXT PLANE — BigQuery Knowledge Catalog<br/>business glossary · operational metadata · data lineage<br/>· data products · verified GRAPH_EXPAND queries & semantic guardrails<br/><b>the context platform that grounds agents</b>"]
 
     CTRL["CONTROL PLANE — policy tags · dynamic masking<br/>· column & row-level security · Data Clean Rooms · consent enforcement<br/>· immutable audit of every AI verdict"]
 
@@ -90,21 +91,20 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    S1["Source records<br/>(n sources)"] --> S2["Normalise<br/>+ build match_key"]
+    S1["Source records<br/>(7 sources, 20k rows)"] --> S2["Normalise +<br/>Bipartite Identifier Graph<br/>(IDF rarity & hubs)"]
     S2 --> S3["Autonomous<br/>embedding"]
-    S3 --> S4["Blocking +<br/>hybrid candidate<br/>generation"]
+    S3 --> S4["Lexical + Vector<br/>candidate retrieval<br/>+ RRF + 2-Hop features"]
     S4 --> S5{"Tiered<br/>decision"}
-    S5 -->|"score ≥ τ_hi<br/>or deterministic hit"| S6["Auto-match edge"]
-    S5 -->|"τ_lo < score < τ_hi"| S7["LLM Adjudicator"]
-    S5 -->|"score ≤ τ_lo"| S8["Discard"]
+    S5 -->|"AUTO_MATCH<br/>(0.04%)"| S6["Accepted edge"]
+    S5 -->|"GREY_ZONE<br/>(0.39%)"| S7["Gemini 2.5 Flash<br/>Adjudicator"]
+    S5 -->|"REJECT<br/>(99.57%)"| S8["Discard"]
     S7 --> S9{"confidence"}
-    S9 -->|"≥ 0.85"| S6
-    S9 -->|"0.60 – 0.85"| S10["Steward work queue"]
+    S9 -->|"≥ 0.85 + no conflict"| S6
+    S9 -->|"0.60 – 0.85"| S10["Steward work queue<br/>(SUSPECTED_LINK)"]
     S9 -->|"< 0.60"| S8
-    S10 --> S6
-    S6 --> S11["Identity graph<br/>connected components"]
-    S11 --> S12["Survivorship"]
-    S12 --> S13["Golden record<br/>person_id"]
+    S6 --> S11["Pass-1 CC → Pass-2<br/>Contradiction Guard<br/>→ Pass-2 CC"]
+    S11 --> S12["Survivorship &<br/>Intersection Consent"]
+    S12 --> S13["Golden Person +<br/>Property Graphs"]
 ```
 
 ### 3.2 Match key construction
@@ -172,100 +172,114 @@ Extend the vector index with the lexical columns so the keyword leg is indexed r
 
 **Blocking.** Even with efficient retrieval, do not run all-pairs. Restrict candidate generation with cheap deterministic blocks — postcode district, name-metaphone + birth year, email domain + surname — and union the candidate sets. Blocking controls cost; hybrid retrieval controls recall within each block.
 
-### 3.5 Tiered decisioning
+### 3.5 Bipartite Identifier Graph Rarity, 2-Hop Features & Tiered Decisioning
 
-| Tier | Condition | Action | Indicative volume |
+Before scoring pairs, Stage 40 (`40_block.sql` §40e–40h) builds a **Bipartite Profile $\leftrightarrow$ Identifier Graph** (`has_identifier`, `has_identifier_history`, `identifier`, `profile_projection`) and computes each identifier's **Inverse Document Frequency (`idf_weight = LN(1 + N / degree)`)** and promiscuity flag (`is_promiscuous = degree > 25`).
+
+Stage 50 (`50_candidates.sql`) enriches each candidate pair with:
+1. **1-Hop Shared Identifier Rarity:** `idf_weight_sum`, `min_shared_degree`, `via_hub`, `hub_only`.
+2. **2-Hop Neighbourhood Divergence (Replacing PyTorch GraphSAGE):** `unshared_email_both`, `unshared_phone_both`, `unshared_acct_both`, `street_match`, `street_conflict` — checking whether Record A and Record B carry *different* non-overlapping identifiers in their 2-hop neighbourhood.
+
+| Tier | Condition | Action | Measured Volume (`20,000` records) |
 | :--- | :--- | :--- | :--- |
-| Auto-match | Deterministic key hit (verified email, account number, national ID), or hybrid score ≥ τ_hi | Emit edge, no LLM | ~85% |
-| Grey zone | τ_lo < hybrid score < τ_hi | LLM adjudication | ~12% |
-| Auto-reject | hybrid score ≤ τ_lo | Discard | ~3% |
-
-Volumes are **illustrative**; actual ratios are a function of source data quality and are measured during the pilot. τ_hi and τ_lo are tuned against a labelled golden set to hit an agreed precision target — precision is prioritised over recall per principle P6.
+| **`AUTO_MATCH`** | Two independent rare identifiers agree (`min_shared_degree <= 3`) or `combined_score >= 0.92` with zero 2-hop conflicts | Emit edge, no LLM | **`4,345` pairs (`0.04%`)** |
+| **`GREY_ZONE`** | Single shared identifier, household collision, 2-hop divergence, or `0.72 <= combined_score < 0.92` | Gemini 2.5 Flash adjudication | **`41,769` pairs (`0.39%`)** |
+| **`REJECT`** | Promiscuous hub collision (`hub_only`), DOB conflict, or `combined_score < 0.72` | Discard | **`10,727,728` pairs (`99.57%`)** |
 
 Use `optimization_mode => 'MINIMIZE_COST'` on any high-volume `AI.IF` / `AI.CLASSIFY` pre-filter; distilled proxy models reduce cost substantially at the pre-filter stage where a false negative is recoverable downstream.
 
 ### 3.6 The LLM Adjudicator
 
 ```sql
-AI.GENERATE_TABLE(
-  prompt => <structured comparison prompt>,
+AI.GENERATE(
+  prompt => <structured comparison prompt with 1-hop rarity & 2-hop divergence>,
   connection_id => 'cdp-conn',
+  endpoint => 'gemini-2.5-flash',
   output_schema =>
-    'is_same_person BOOL, confidence FLOAT64, rationale STRING, '
-    || 'deciding_evidence ARRAY<STRING>, risk_flag STRING'
+    'verdict STRING, confidence FLOAT64, decisive_evidence STRING, '
+    || 'contradiction STRING, rationale STRING, injection_detected BOOL'
 )
 ```
 
 **Cases it resolves that rules cannot:**
-- Diminutives and phonetic variants (`Bob`/`Robert`, `Smyth`/`Smith`)
-- Married-name and legal-name changes
-- Transliteration across scripts
-- **Households** — four people, one address, different first names → *different people*
-- Sole traders who are simultaneously a person and a business entity
-- Corroborating weak signals (`jonny81@` supporting a 1981 date of birth)
+- Diminutives and phonetic variants (`Bob`/`Robert`, `Smyth`/`Smith`, `Xiu Ying` / `Xiuying`)
+- Married-name and legal-name changes (`SURNAME_CHANGE`)
+- Transliteration across scripts (`TRANSLITERATION`, `DIACRITIC_VARIANT`)
+- **Households** — four people, one address or shared family email (`EM:thegills@gmail.com`), different first names → *different people* (`0` FPs)
+- Sole traders who are simultaneously a person and a business entity (`SOLE_TRADER`)
+- Unstructured call transcripts and support tickets (`UNSTRUCTURED_ONLY`, `CALL_ON_BEHALF`)
 
 **What makes it defensible:**
 
 | Output field | Purpose |
 | :--- | :--- |
-| `is_same_person` | The verdict |
-| `confidence` | Routes to auto-accept, steward queue, or reject |
+| `verdict` | `MATCH`, `NO_MATCH`, or `UNCERTAIN` |
+| `confidence` | Routes to auto-accept (`>= 0.85`), steward queue (`0.60 - 0.85`), or reject |
 | `rationale` | Human-readable justification — the regulatory answer |
-| `deciding_evidence` | Machine-readable evidence codes, enabling aggregate analysis of *why* merges happen |
-| `risk_flag` | Surfaces business-vs-individual, suspected fraud, minor, deceased |
+| `decisive_evidence` | Machine-readable evidence summary enabling aggregate audit of *why* merges happen |
+| `contradiction` | Explicit account of any conflicting attribute (e.g., divergent forenames or addresses) |
+| `injection_detected` | Hard safety veto against adversarial prompt-injection payloads in free text |
 
-**Determinism controls.** Pin the model version. Version prompts in source control. Store the full verdict row immutably. Regression-test any prompt change against a labelled golden set before promotion. Never mutate a historical verdict — supersede it with a new one.
+**Determinism controls.** Pin the model version. Version prompts in source control. Store the full verdict row immutably in `cdp.adjudications`. Never mutate a historical verdict — supersede it with a new one (`v_adjudications_current`).
 
-### 3.7 Graph clustering
+### 3.7 Two-Pass Contradiction Guard & Dual Native Property Graphs (`70_graph.sql`)
 
-```sql
-CREATE OR REPLACE PROPERTY GRAPH cdp.identity_graph
-NODE TABLES (cdp.party_records AS Party KEY (record_id))
-EDGE TABLES (
-  cdp.match_verdicts AS SameAs
-    KEY (verdict_id)
-    SOURCE KEY (record_id_a) REFERENCES Party
-    DESTINATION KEY (record_id_b) REFERENCES Party
-);
-```
+Stage 70 runs **Two-Pass Connected Components** followed by two native BigQuery `PROPERTY GRAPH` declarations:
 
-Pairwise verdicts are insufficient. Transitive closure over accepted edges yields the cluster, and the cluster is what gets a `person_id`.
+1. **Pass-1 Connected Components $\rightarrow$ Pass-2 Contradiction Guard:** If `Madeleine Davenport` links to `M Davenport` (via shared household phone) and `Mia Davenport` also links to `M Davenport`, Pass 1 puts both sisters in the same component. Pass 2 (`component_contradictions`) detects incompatible full forenames or DOBs inside the component and severs the ambiguous initial-bridge edges (`suppressed_by_contradiction = TRUE`) before computing final `person_assignment`.
+2. **Operational & Visual Property Graph (`cdp.cdp_identity_graph`):**
+   ```sql
+   CREATE OR REPLACE PROPERTY GRAPH cdp.cdp_identity_graph
+   NODE TABLES (
+     cdp.node_source_record AS SourceRecord KEY (record_id),
+     cdp.identifier         AS IdentifierNode KEY (identifier_id),
+     cdp.node_person        AS Person KEY (person_id),
+     cdp.node_household     AS Household KEY (household_id),
+     cdp.node_address       AS Address KEY (address_key),
+     cdp.node_email         AS Email KEY (email_norm),
+     cdp.node_phone         AS Phone KEY (phone_e164),
+     cdp.node_account       AS Account KEY (account_number)
+   )
+   EDGE TABLES (
+     cdp.has_identifier     AS HAS_IDENTIFIER SOURCE KEY (record_id) REFERENCES SourceRecord DESTINATION KEY (identifier_id) REFERENCES IdentifierNode,
+     cdp.edge_resolves_to   AS RESOLVES_TO    SOURCE KEY (record_id) REFERENCES SourceRecord DESTINATION KEY (person_id) REFERENCES Person,
+     cdp.edge_member_of     AS MEMBER_OF      SOURCE KEY (person_id) REFERENCES Person       DESTINATION KEY (household_id) REFERENCES Household,
+     cdp.edge_Suspected_link AS SUSPECTED_LINK SOURCE KEY (person_id_a) REFERENCES Person    DESTINATION KEY (person_id_b) REFERENCES Person,
+     cdp.edge_related_to    AS RELATED_TO     SOURCE KEY (person_id) REFERENCES Person       DESTINATION KEY (related_person_id) REFERENCES Person
+     -- plus LIVES_AT, HAS_EMAIL, HAS_PHONE, HOLDS_ACCOUNT
+   );
+   ```
+3. **Declarative Semantic Property Graph (`cdp.cdp_semantic_graph`):** Declares node-scoped `MEASURE()` expressions on `Profile`, `Membership`, and `Identifier` so `FROM GRAPH_EXPAND("cdp.cdp_semantic_graph")` + `AGG()` computes multi-hop brand/identifier metrics without join fan-out.
 
-**Contradiction handling.** If A↔B and B↔C are accepted but A↮C was rejected, the triangle is inconsistent. Policy: quarantine the component and route to a steward rather than silently resolving.
+### 3.8 Survivorship & 3-Method Benchmark (`all-things-cdp.cdp`)
 
-**Over-merge detection.** Alert on components exceeding a size threshold, on components spanning implausibly many distinct postcodes or dates of birth, and on articulation points whose removal would split a large component — these are usually a single bad edge.
+Attribute-level rules in `80_survivorship.sql` produce `cdp.golden_person` and `cdp.field_survivorship`. Stage 95 (`95_scorecard.sql`) benchmarks **three resolution methods** side by side against hidden ground truth (`20,000` records, `13,925` true people):
 
-**Other edge types on the same graph:** `SameHousehold`, `EmployedBy`, `Guardian`, `SubsidiaryOf`. Households and B2B hierarchies come free rather than requiring a separate model.
-
-### 3.8 Survivorship
-
-Attribute-level rules produce the golden record; each surviving attribute retains a pointer to the source record that won it.
-
-| Attribute class | Rule |
-| :--- | :--- |
-| Legal identifiers | Highest source trust score |
-| Contact — email, phone | Verified beats unverified, then most recently confirmed |
-| Address | Most complete, then most recent, then highest trust |
-| Preferences | Most recent explicit statement |
-| **Consent** | **Never inherited across a merge** — evaluated at profile level from source-bound consent records |
+| Method | Pairwise TP | Pairwise FP | Precision | Recall | F1 | Largest Component | Hairballs (`>30` profiles) |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **`baseline_cc`** *(Naive Connected Components)* | `8,064` | `13,488,214` | `0.06%` | `42.95%` | `0.0012` | `5,195` | `1` (`5,195` profiles) |
+| **`weighted_cc`** *(IDF Graph Rarity `weight >= 7.0`)* | `7,566` | `321` | `95.93%` | `40.30%` | `0.5675` | `5` | `0` |
+| **`composable_cdp`** *(2-Hop Graph + Hybrid Search + LLM + Pass-2 Guard)* | **`8,274`** | **`45`** | **`99.46%`** | **`44.07%`** | **`0.6107`** | **`9`** | **`0`** |
 
 > [!CAUTION]
-> Inheriting marketing consent across a merge creates a regulatory incident at scale. Consent is bound to the source record and the profile-level permission is the *intersection*, not the union.
+> Inheriting marketing consent across a merge creates a regulatory incident at scale. Consent is bound to the source record and the profile-level permission is the *intersection*, not the union (`85_consent.sql`).
 
 ---
 
-## 4. Data model (core tables)
+## 4. Data model (core tables & graphs)
 
-| Table | Grain | Purpose |
+| Object | Grain | Purpose |
 | :--- | :--- | :--- |
-| `cdp.party_records` | One row per source record | Normalised records, match key, autonomous embedding |
-| `cdp.match_candidates` | One row per candidate pair | Blocking + hybrid retrieval output with scores |
-| `cdp.match_verdicts` | One row per adjudicated pair | Immutable verdicts with rationale and provenance |
-| `cdp.identity_edges` | One row per accepted link | Union of auto-matched and adjudicator-accepted edges |
-| `cdp.person_clusters` | One row per source record | `record_id → person_id` assignment |
-| `cdp.golden_records` | One row per person | Resolved profile with attribute-level lineage |
-| `cdp.steward_queue` | One row per pending decision | Human-in-the-loop work queue |
-| `cdp.consent_ledger` | One row per consent event | Source-bound, append-only |
+| `cdp.party_records` / `cdp.party_search` | One row per source record | Normalised records, `match_key`, autonomous embedding (`party_vectors`) |
+| `cdp.identifier` / `cdp.has_identifier_history` | One row per identifier / link | Bipartite Identifier Graph with `degree`, `idf_weight`, `is_promiscuous`, and temporal `is_current` |
+| `cdp.profile_projection` | One row per shared-ID pair | 2-hop identifier graph projection (`weight`, `min_shared_degree`, `via_hub`, `hub_only`) |
+| `cdp.pair_features` / `cdp.pair_tiers` | One row per candidate pair | Hybrid RRF + 1-hop/2-hop features (`unshared_*_both`, `forename_conflict`) + tiering |
+| `cdp.adjudications` / `cdp.pair_decisions` | One row per judged pair | Append-only Gemini 2.5 Flash verdicts with rationale, contradiction, and injection guard |
+| `cdp.resolution_edges` / `cdp.person_assignment` | One row per edge / record | Pass-2 contradiction-pruned edges and stable `person_crosswalk` assignment |
+| `cdp.resolution_runs` / `cdp.v_method_comparison` | One row per method / pathology | 3-method benchmark (`baseline_cc`, `weighted_cc`, `composable_cdp`) |
+| `cdp.golden_person` / `cdp.field_survivorship` | One row per person / field | Mastered customer profile and contested-field provenance |
+| `cdp.consent_state` / `cdp.v_consent_impact` | One row per `(person, channel, purpose)` | Intersection consent ledger & Privacy Act 1988 audit |
+| `cdp.cdp_identity_graph` / `cdp.cdp_semantic_graph` | Native BigQuery Property Graphs | ISO GQL (`GRAPH_TABLE` / `%%bigquery --graph`) and `GRAPH_EXPAND` + `AGG()` semantic layer |
 
 ---
 

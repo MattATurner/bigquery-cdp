@@ -14,13 +14,14 @@ committed anywhere in this repository — `setup.sh` asks.
 | # | Claim | Where to look |
 | :-- | :--- | :--- |
 | 1 | Unstructured sources need no ETL | `20_normalise.sql` — `AI.GENERATE` reads call transcripts from an object table and ticket bodies from Parquet, in place |
-| 2 | Embeddings maintain themselves | `30_embed.sql` — `GENERATED ALWAYS AS (AI.EMBED(...))`. There is no embedding job to run or repair |
-| 3 | Neither search leg is sufficient alone | `v_retrieval_recall` — what a semantic-only and a lexical-only architecture would each have missed, against truth |
-| 4 | An LLM is affordable if it only sees the hard cases | `v_scorecard.pct_of_pairs_using_an_llm` |
-| 5 | Transitive closure must be distrusted | `70_graph.sql` — contradicted clusters are rebuilt, not published |
-| 6 | Identifiers must outlive the clusters that made them | `person_crosswalk`, Scenario A |
-| 7 | Merging people is not merging permissions | `85_consent.sql`, Scenario C |
-| 8 | The graph is the point, not the byproduct | `90_downstream.sql` — segmentation, households, shared-identifier risk, agent grounding, activation |
+| 2 | Embeddings maintain themselves | `30_embed.sql` & `35_embed_finalise.sql` — `AI.EMBED` over `match_key` + `VECTOR INDEX` and `SEARCH INDEX` |
+| 3 | Bipartite graph rarity & 2-hop SQL features replace PyTorch GNNs | `40_block.sql` (§40e–40h) & `50_candidates.sql` — closed-form `idf_weight = LN(1 + N / degree)` + 2-hop divergence (`unshared_*_both`) |
+| 4 | Neither search leg is sufficient alone | `v_retrieval_legs` & `v_retrieval_recall` — what a semantic-only and a lexical-only architecture would each have missed, against truth |
+| 5 | An LLM is affordable if it only sees the hard cases | `v_scorecard.pct_of_pairs_using_an_llm` (`0.39%` of candidate pairs, `$0.085` total AI spend on 20k records) |
+| 6 | Transitive closure must be distrusted | `70_graph.sql` — Pass-2 Contradiction Guard severs initial-bridge sibling collisions (`suppressed_by_contradiction = TRUE`) |
+| 7 | Native Property Graphs + `GRAPH_EXPAND` eliminate join fan-out | `70_graph.sql` — `cdp.cdp_identity_graph` (ISO GQL / `%%bigquery --graph`) and `cdp.cdp_semantic_graph` (`MEASURE()` + `GRAPH_EXPAND` + `AGG()`) |
+| 8 | Merging people is not merging permissions | `85_consent.sql`, Scenario C — Australian Privacy Act 1988 Intersection Consent |
+| 9 | 3-method benchmark proves every layer's lift | `95_scorecard.sql` — `v_method_comparison` (`baseline_cc` `0.06%` prec / `1` hairball vs `weighted_cc` `95.93%` prec vs `composable_cdp` **`99.46%` prec / `44.07%` recall / `0` hairballs**) |
 
 ---
 
@@ -29,7 +30,7 @@ committed anywhere in this repository — `setup.sh` asks.
 ```bash
 cd demo
 ./setup.sh          # asks for project, region, bucket, connection, thresholds
-./run.sh            # generate → upload → 00 … 95
+./run.sh            # generate → upload → 00 … 96
 ```
 
 `setup.sh` writes `config.env`, which is git-ignored and `chmod 600`. Nothing in the
@@ -43,12 +44,26 @@ committed tree contains your environment.
 ./run.sh --dry-run      # render every SQL file, submit nothing
 ```
 
-Then read the two things that matter:
+Then read the three benchmark views:
 
 ```sql
 SELECT * FROM `PROJECT.DATASET.v_scorecard`;
-SELECT * FROM `PROJECT.DATASET.v_case_results` ORDER BY passed, case_type;
+SELECT * FROM `PROJECT.DATASET.v_method_comparison`;
+SELECT * FROM `PROJECT.DATASET.v_case_results` ORDER BY intent, recall DESC;
 ```
+
+## 5-Act Notebook Suite & Agents
+
+- **5-Act Pre-Executed Notebook Suite (`demo/notebooks/`):**
+  - [`notebooks/01_identity_resolution_story.ipynb`](notebooks/01_identity_resolution_story.ipynb) — Executive 15-minute narrative + one customer (`Abby Noland`, `PER-1cdfdb9f52ddb25a`) end-to-end
+  - [`notebooks/02_graph_pathology_and_rarity.ipynb`](notebooks/02_graph_pathology_and_rarity.ipynb) — Act 1: Bipartite Identifier Graph, Promiscuous Hubs & IDF Rarity
+  - [`notebooks/03_hybrid_search_and_2hop_features.ipynb`](notebooks/03_hybrid_search_and_2hop_features.ipynb) — Act 2: Hybrid Search (`AI.SEARCH` + RRF) & 2-Hop SQL Graph Features (No GNN)
+  - [`notebooks/04_llm_adjudicator_and_contradiction_guard.ipynb`](notebooks/04_llm_adjudicator_and_contradiction_guard.ipynb) — Act 3: Gemini 2.5 Flash Adjudicator, Prompt-Injection Defense & Pass-2 Contradiction Pruning
+  - [`notebooks/05_semantic_graph_governance_and_roi.ipynb`](notebooks/05_semantic_graph_governance_and_roi.ipynb) — Act 4 & 5: `GRAPH_EXPAND` Semantic Graph, Intersection Consent, Activation ROI & Measured Cost Model
+  - [`notebooks/bigquery_studio/`](notebooks/bigquery_studio/) — Self-contained `%%bigquery --graph` interactive visual notebooks for BigQuery Studio
+- **Conversational Analytics & ADK Agents (`demo/agents/`):**
+  - [`agents/semantic_agent.py`](agents/semantic_agent.py) — BigQuery Conversational Analytics Data Agent grounded on `cdp_semantic_graph` (`GRAPH_EXPAND` + `AGG()`) and BigQuery Knowledge Catalog glossary terms
+  - [`agents/explainer_agent/`](agents/explainer_agent/) — Google ADK Identity Resolution Explainer Agent (`cdp_explainer`) with 5 deterministic SQL/GQL tools (`lookup_profile`, `explain_link`, `explain_component`, `identifier_report`, `resolution_runs`)
 
 And the five scenarios:
 
@@ -66,14 +81,7 @@ And the five scenarios:
 
 > [!IMPORTANT]
 > Run the whole thing end to end, at least once, well before the meeting — and read
-> `v_case_results` before you decide which slides to show.
-
-Two reasons. First, several features used here are recent, and regional availability
-varies; a missing capability is much easier to work around two days out than two
-minutes out. Second, and more importantly: **some hard cases will fail**. That is by
-design. The failures are the most credible part of the demo, but only if you have
-read them and can talk about them. Walking into a room of practitioners with an
-unexamined scorecard is worse than not showing one.
+> `v_method_comparison` and `v_case_results` before you decide which slides to show.
 
 ---
 
@@ -84,16 +92,17 @@ unexamined scorecard is worse than not showing one.
 | 00 | `sql/00_setup.sql` | Datasets and normalisation UDFs (Australian locale) |
 | 05 | `sql/05_preflight.sql` | Probes every model and the Vertex connection before any data is touched |
 | 10 | `sql/10_land_sources.sql` | 4 managed, 3 external, 1 object table, 2 truth tables |
-| 20 | `sql/20_normalise.sql` | AI extraction from unstructured text; one unified `party_records` |
-| 30 | `sql/30_embed.sql` | Self-maintaining embeddings, hybrid index, BM25 index |
-| 40 | `sql/40_block.sql` | Deterministic blocking, with an honest account of what it dropped |
-| 50 | `sql/50_candidates.sql` | Semantic retrieval, RRF, pair features, three-way tiering |
-| 60 | `sql/60_adjudicate.sql` | LLM on the grey zone only; append-only verdict ledger |
-| 70 | `sql/70_graph.sql` | Connected components, contradiction guard, stable IDs, mastered graph |
-| 80 | `sql/80_survivorship.sql` | Field-level survivorship with full provenance |
+| 20 | `sql/20_normalise.sql` | `AI.GENERATE` extraction from unstructured call transcripts & support tickets; unified `party_records` |
+| 30 | `sql/30_embed.sql` | Embeddings (`party_vectors`) and `party_search` |
+| 35 | `sql/35_embed_finalise.sql` | `VECTOR INDEX` and `SEARCH INDEX` creation |
+| 40 | `sql/40_block.sql` | Deterministic blocking + Bipartite Identifier Graph (`has_identifier`, `has_identifier_history`, `identifier` IDF rarity, `profile_projection`) |
+| 50 | `sql/50_candidates.sql` | Semantic retrieval, RRF, 1-hop/2-hop graph features (`unshared_*_both`), three-way tiering |
+| 60 | `sql/60_adjudicate.sql` | Gemini 2.5 Flash on the grey zone only; append-only verdict ledger |
+| 70 | `sql/70_graph.sql` | 3-method graph clustering (`baseline_cc`, `weighted_cc`, `composable_cdp`), Pass-2 Contradiction Guard, stable IDs, `cdp_identity_graph` & `cdp_semantic_graph` |
+| 80 | `sql/80_survivorship.sql` | Field-level survivorship (`golden_person`, `field_survivorship`) with full provenance |
 | 85 | `sql/85_consent.sql` | Intersection rule, suppressions, audience impact |
 | 90 | `sql/90_downstream.sql` | Segmentation, households, graph risk, agent grounding, activation |
-| 95 | `sql/95_scorecard.sql` | Ground-truth scoring and per-case results |
+| 95 | `sql/95_scorecard.sql` | Ground-truth scoring (`v_scorecard`, `v_case_results`, `v_method_comparison`) |
 | 96 | `sql/96_cost_model.sql` | Measured cost of the run, extrapolated to target volume |
 
 Ground truth lands in a **separate dataset** (`<prefix>_truth`). Only stage 95 reads
@@ -102,13 +111,15 @@ makes such a bug visible in review rather than silently flattering the score.
 
 ---
 
-## The mastered graph
+## Two native BigQuery Property Graphs (`70_graph.sql`)
 
-Seven node types, eight edge types.
+1. **`cdp.cdp_identity_graph` (8 node tables, 9 edge tables):** Connects both the pre-resolution Bipartite Identifier Graph (`SourceRecord` $\xrightarrow{\text{HAS\_IDENTIFIER}}$ `IdentifierNode`) and the post-resolution Customer 360 Entity Graph (`SourceRecord` $\xrightarrow{\text{RESOLVES\_TO}}$ `Person` $\xrightarrow{\text{MEMBER\_OF}}$ `Household`), annotated with `OPTIONS(description, synonyms)` for ISO GQL (`GRAPH_TABLE`) and `%%bigquery --graph` visualisations.
+2. **`cdp.cdp_semantic_graph` (Declarative `MEASURE()` Graph):** Defines node-scoped measures (`profile_count`, `link_count`, `identifier_count`, `baseline_wesid_count`, `weighted_wesid_count`, `composable_wesid_count`, `profiles_in_baseline_hairballs`, etc.) for fan-out-free multi-hop rollups via `FROM GRAPH_EXPAND("cdp.cdp_semantic_graph")` + `AGG()`.
 
 ```mermaid
 flowchart LR
-  SR["SourceRecord"] -->|RESOLVES_TO| P["Person"]
+  IN["IdentifierNode<br/>(degree, idf_weight, is_promiscuous)"] <--|HAS_IDENTIFIER| SR["SourceRecord"]
+  SR -->|RESOLVES_TO| P["Person"]
   P -->|LIVES_AT| A["Address"]
   P -->|MEMBER_OF| H["Household"]
   P -->|HAS_EMAIL| E["Email"]

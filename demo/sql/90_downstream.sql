@@ -445,3 +445,208 @@ SELECT 'resolved · one person = one customer',
        customers, total_spend,
        ROUND(SAFE_DIVIDE(total_spend, customers), 2)
 FROM resolved;
+
+
+-- ---------------------------------------------------------------------
+-- 90f · Semantic Property Graph with DDL MEASUREs (cdp_semantic_graph)
+--
+-- Exposes the identity graph as a star-shaped semantic layer with DDL
+-- MEASURE() definitions so GRAPH_EXPAND + AGG() aggregates metrics
+-- exactly once per entity key (preventing fan-out double counting across
+-- profile-identifier links).
+--
+-- Shape:
+--   Membership (root, one row per current record-identifier link)
+--     |-- LINKS_PROFILE ----> Profile    (with baseline_cc, weighted_cc,
+--     |                                   and composable_cdp clusters)
+--     '-- LINKS_IDENTIFIER -> Identifier (with degree, IDF, promiscuity)
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE TABLE `${CDP_PROJECT}.${CDP_DS}.sem_membership`
+AS
+SELECT
+  record_id,
+  record_id                 AS profile_id,
+  identifier_id,
+  identifier_type,
+  IF(is_anchor, 1, 0)       AS anchor_flag,
+  sources,
+  first_seen_in,
+  from_ts                   AS available_from_ts
+FROM `${CDP_PROJECT}.${CDP_DS}.has_identifier`;
+
+CREATE OR REPLACE TABLE `${CDP_PROJECT}.${CDP_DS}.sem_identifier`
+AS
+SELECT
+  identifier_id,
+  identifier_type,
+  degree,
+  degree_all_time,
+  idf_weight,
+  is_promiscuous,
+  IF(is_promiscuous, 1, 0)  AS promiscuous_flag,
+  sources,
+  first_seen_ts,
+  last_seen_ts
+FROM `${CDP_PROJECT}.${CDP_DS}.identifier`;
+
+CREATE OR REPLACE TABLE `${CDP_PROJECT}.${CDP_DS}.sem_profile`
+AS
+WITH id_summary AS (
+  SELECT
+    h.record_id,
+    COUNT(DISTINCT h.identifier_id)                            AS n_identifiers,
+    COUNTIF(h.is_anchor)                                       AS n_anchor,
+    LOGICAL_OR(h.identifier_type = 'email')                    AS has_email,
+    LOGICAL_OR(h.identifier_type = 'phone')                    AS has_phone,
+    LOGICAL_OR(h.identifier_type = 'loyalty_account')          AS has_loyalty_id,
+    MAX(IF(i.is_promiscuous, 1, 0))                            AS touches_hub_flag
+  FROM `${CDP_PROJECT}.${CDP_DS}.has_identifier` AS h
+  JOIN `${CDP_PROJECT}.${CDP_DS}.identifier`     AS i USING (identifier_id)
+  GROUP BY h.record_id
+),
+latest AS (
+  SELECT
+    a.record_id,
+    a.method,
+    a.wesid,
+    c.n_profiles AS cluster_size,
+    c.is_hairball
+  FROM `${CDP_PROJECT}.${CDP_DS}.wesid_assignments` AS a
+  JOIN `${CDP_PROJECT}.${CDP_DS}.wesid_cluster`     AS c
+    ON c.wesid = a.wesid AND c.run_id = a.run_id
+  WHERE a.is_latest AND c.is_latest
+)
+SELECT
+  p.record_id,
+  p.record_id                                                  AS profile_id,
+  p.source_system                                              AS sources,
+  1                                                            AS n_sources,
+  IFNULL(s.n_identifiers, 0)                                   AS n_identifiers,
+  IFNULL(s.n_anchor, 0)                                        AS n_anchor,
+  IFNULL(s.has_email, FALSE)                                   AS has_email,
+  IFNULL(s.has_phone, FALSE)                                   AS has_phone,
+  IFNULL(s.has_loyalty_id, FALSE)                              AS has_loyalty_id,
+  p.source_system                                              AS first_seen_in,
+  p.source_ts                                                  AS first_seen_ts,
+  IFNULL(s.touches_hub_flag, 0)                                AS touches_hub_flag,
+  b.wesid                                                      AS baseline_wesid,
+  b.cluster_size                                               AS baseline_cluster_size,
+  IF(b.is_hairball, 1, 0)                                      AS baseline_hairball_flag,
+  w.wesid                                                      AS weighted_wesid,
+  w.cluster_size                                               AS weighted_cluster_size,
+  IF(w.is_hairball, 1, 0)                                      AS weighted_hairball_flag,
+  c.wesid                                                      AS composable_wesid,
+  c.cluster_size                                               AS composable_cluster_size,
+  IF(c.is_hairball, 1, 0)                                      AS composable_hairball_flag,
+  IF(b.cluster_size != c.cluster_size, 1, 0)                   AS baseline_composable_disagree_flag
+FROM `${CDP_PROJECT}.${CDP_DS}.party_records` AS p
+LEFT JOIN id_summary AS s USING (record_id)
+LEFT JOIN latest     AS b ON b.record_id = p.record_id AND b.method = 'baseline_cc'
+LEFT JOIN latest     AS w ON w.record_id = p.record_id AND w.method = 'weighted_cc'
+LEFT JOIN latest     AS c ON c.record_id = p.record_id AND c.method = 'composable_cdp';
+
+CREATE OR REPLACE PROPERTY GRAPH `${CDP_PROJECT}.${CDP_DS}.cdp_semantic_graph`
+  NODE TABLES (
+    `${CDP_PROJECT}.${CDP_DS}.sem_membership` AS Membership
+      KEY (record_id, identifier_id)
+      DEFAULT LABEL OPTIONS (
+        description = 'One current link between a customer source record and a normalised identifier. Root table of the semantic graph.',
+        synonyms = ['link', 'identifier membership', 'record-identifier pair']
+      )
+      PROPERTIES (
+        record_id         OPTIONS (description = 'Customer source record key', synonyms = ['profile_id', 'customer id']),
+        profile_id        OPTIONS (description = 'Alias of record_id for cross-notebook compatibility'),
+        identifier_id     OPTIONS (description = 'Normalised identifier value (EM:, PH:, AC:, DV:)'),
+        identifier_type   OPTIONS (description = 'Kind of identifier: email, phone, loyalty_account, device_id', synonyms = ['id type']),
+        anchor_flag       OPTIONS (description = '1 if primary anchor identifier in the source system, else 0'),
+        sources           OPTIONS (description = 'Originating source system (CRM, LOYALTY, ECOMM, POS, CALL, SURVEY)', synonyms = ['source systems', 'brands']),
+        first_seen_in     OPTIONS (description = 'Source system where the link was first observed'),
+        available_from_ts OPTIONS (description = 'Timestamp when the link was recorded'),
+        MEASURE(COUNT(record_id))   AS link_count        OPTIONS (description = 'Number of record-identifier links', synonyms = ['links', 'memberships']),
+        MEASURE(SUM(anchor_flag))   AS anchor_link_count OPTIONS (description = 'Number of links that are anchor identifiers')
+      ),
+    `${CDP_PROJECT}.${CDP_DS}.sem_profile` AS Profile
+      KEY (record_id)
+      DEFAULT LABEL OPTIONS (
+        description = 'A customer source record plus where each identity-resolution method (baseline_cc, weighted_cc, composable_cdp) placed it.',
+        synonyms = ['customer', 'customer profile', 'record']
+      )
+      PROPERTIES (
+        record_id                         OPTIONS (description = 'Source record key', synonyms = ['profile_id']),
+        profile_id                        OPTIONS (description = 'Customer profile key'),
+        sources                           OPTIONS (description = 'Originating source system', synonyms = ['brand', 'source system']),
+        n_sources                         OPTIONS (description = 'Number of source systems for this record'),
+        n_identifiers                     OPTIONS (description = 'Number of current identifiers held by the record'),
+        n_anchor                          OPTIONS (description = 'Number of anchor identifiers held'),
+        has_email                         OPTIONS (description = 'Record holds an email address'),
+        has_phone                         OPTIONS (description = 'Record holds a phone number'),
+        has_loyalty_id                    OPTIONS (description = 'Record holds a loyalty account number'),
+        first_seen_in                     OPTIONS (description = 'Originating source system'),
+        first_seen_ts                     OPTIONS (description = 'Record timestamp'),
+        touches_hub_flag                  OPTIONS (description = '1 if the record touches at least one promiscuous hub identifier (degree > 25), else 0'),
+        baseline_wesid                    OPTIONS (description = 'Cluster assigned by baseline_cc (naive connected components)'),
+        baseline_cluster_size             OPTIONS (description = 'Number of records in the baseline_cc cluster'),
+        baseline_hairball_flag            OPTIONS (description = '1 if the baseline_cc cluster is a hairball (>= 20 records), else 0'),
+        weighted_wesid                    OPTIONS (description = 'Cluster assigned by weighted_cc (IDF-weighted bipartite projection)'),
+        weighted_cluster_size             OPTIONS (description = 'Number of records in the weighted_cc cluster'),
+        weighted_hairball_flag            OPTIONS (description = '1 if the weighted_cc cluster is a hairball (>= 20 records), else 0'),
+        composable_wesid                  OPTIONS (description = 'Cluster assigned by composable_cdp (2-Hop Graph + Hybrid Search + Gemini Adjudicator + Contradiction Guard)'),
+        composable_cluster_size           OPTIONS (description = 'Number of records in the composable_cdp cluster'),
+        composable_hairball_flag          OPTIONS (description = '1 if the composable_cdp cluster is a hairball (>= 20 records), else 0'),
+        baseline_composable_disagree_flag OPTIONS (description = '1 if baseline_cc and composable_cdp place the record in clusters of different size'),
+        MEASURE(COUNT(record_id))                         AS profile_count                      OPTIONS (description = 'Number of distinct customer records', synonyms = ['profiles', 'records']),
+        MEASURE(AVG(n_identifiers))                       AS avg_identifiers_per_profile        OPTIONS (description = 'Average number of current identifiers per record'),
+        MEASURE(SUM(touches_hub_flag))                    AS profiles_touching_hubs             OPTIONS (description = 'Number of records holding at least one promiscuous hub identifier'),
+        MEASURE(COUNT(DISTINCT baseline_wesid))           AS baseline_wesid_count               OPTIONS (description = 'Number of distinct clusters produced by baseline_cc'),
+        MEASURE(COUNT(DISTINCT weighted_wesid))           AS weighted_wesid_count               OPTIONS (description = 'Number of distinct clusters produced by weighted_cc'),
+        MEASURE(COUNT(DISTINCT composable_wesid))         AS composable_wesid_count             OPTIONS (description = 'Number of distinct clusters produced by composable_cdp'),
+        MEASURE(SUM(baseline_hairball_flag))              AS profiles_in_baseline_hairballs     OPTIONS (description = 'Number of records inside a hairball under baseline_cc'),
+        MEASURE(SUM(weighted_hairball_flag))              AS profiles_in_weighted_hairballs     OPTIONS (description = 'Number of records inside a hairball under weighted_cc'),
+        MEASURE(SUM(composable_hairball_flag))            AS profiles_in_composable_hairballs   OPTIONS (description = 'Number of records inside a hairball under composable_cdp'),
+        MEASURE(MAX(baseline_cluster_size))               AS largest_baseline_cluster           OPTIONS (description = 'Largest baseline_cc cluster size'),
+        MEASURE(MAX(weighted_cluster_size))               AS largest_weighted_cluster           OPTIONS (description = 'Largest weighted_cc cluster size'),
+        MEASURE(MAX(composable_cluster_size))             AS largest_composable_cluster         OPTIONS (description = 'Largest composable_cdp cluster size'),
+        MEASURE(AVG(baseline_cluster_size))               AS avg_baseline_cluster_size          OPTIONS (description = 'Average baseline_cc cluster size'),
+        MEASURE(AVG(composable_cluster_size))             AS avg_composable_cluster_size        OPTIONS (description = 'Average composable_cdp cluster size'),
+        MEASURE(SUM(baseline_composable_disagree_flag))   AS review_candidates                  OPTIONS (description = 'Number of records where baseline_cc and composable_cdp disagree on cluster size')
+      ),
+    `${CDP_PROJECT}.${CDP_DS}.sem_identifier` AS Identifier
+      KEY (identifier_id)
+      DEFAULT LABEL OPTIONS (
+        description = 'A normalised identifier with degree, IDF rarity weight, and promiscuity.',
+        synonyms = ['identity key', 'contact point']
+      )
+      PROPERTIES (
+        identifier_id    OPTIONS (description = 'Normalised identifier value'),
+        identifier_type  OPTIONS (description = 'Kind of identifier: email, phone, loyalty_account, device_id'),
+        degree           OPTIONS (description = 'Number of distinct records currently holding this identifier'),
+        degree_all_time  OPTIONS (description = 'Number of distinct records that ever held this identifier'),
+        idf_weight       OPTIONS (description = 'IDF rarity weight ln(N / degree)'),
+        is_promiscuous   OPTIONS (description = 'TRUE if shared by more than 25 records (hub)'),
+        promiscuous_flag OPTIONS (description = '1 if promiscuous hub, else 0'),
+        sources          OPTIONS (description = 'Pipe-separated source systems that reported the identifier'),
+        first_seen_ts    OPTIONS (description = 'First timestamp the identifier was observed'),
+        last_seen_ts     OPTIONS (description = 'Most recent timestamp the identifier was observed'),
+        MEASURE(COUNT(identifier_id))  AS identifier_count             OPTIONS (description = 'Number of distinct identifiers'),
+        MEASURE(SUM(promiscuous_flag)) AS promiscuous_identifier_count OPTIONS (description = 'Number of promiscuous hub identifiers'),
+        MEASURE(MAX(degree))           AS max_degree                   OPTIONS (description = 'Largest number of records sharing one identifier'),
+        MEASURE(AVG(degree))           AS avg_degree                   OPTIONS (description = 'Average number of records per identifier'),
+        MEASURE(AVG(idf_weight))       AS avg_idf_weight               OPTIONS (description = 'Average IDF rarity weight')
+      )
+  )
+  EDGE TABLES (
+    `${CDP_PROJECT}.${CDP_DS}.sem_membership` AS LINKS_PROFILE
+      KEY (record_id, identifier_id)
+      SOURCE KEY (record_id, identifier_id) REFERENCES Membership (record_id, identifier_id)
+      DESTINATION KEY (record_id) REFERENCES Profile (record_id)
+      DEFAULT LABEL OPTIONS (description = 'The profile/record side of an identifier membership link')
+      NO PROPERTIES,
+    `${CDP_PROJECT}.${CDP_DS}.sem_membership` AS LINKS_IDENTIFIER
+      KEY (record_id, identifier_id)
+      SOURCE KEY (record_id, identifier_id) REFERENCES Membership (record_id, identifier_id)
+      DESTINATION KEY (identifier_id) REFERENCES Identifier (identifier_id)
+      DEFAULT LABEL OPTIONS (description = 'The identifier side of an identifier membership link')
+      NO PROPERTIES
+  );
+

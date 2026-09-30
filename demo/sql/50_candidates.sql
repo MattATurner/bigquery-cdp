@@ -211,32 +211,96 @@ pairs AS (
     a.identity_strength AS a_strength, b.identity_strength AS b_strength,
     a.match_key       AS a_match_key, b.match_key     AS b_match_key,
     IFNULL(si.sur_idf_weight, 1.0) AS surname_idf_weight,
-    IFNULL(pi.pc_idf_weight,  1.0) AS postcode_idf_weight
+    IFNULL(pi.pc_idf_weight,  1.0) AS postcode_idf_weight,
+    -- 2-hop bipartite graph rarity & hub metrics from stage 40h
+    IFNULL(pp.weight, 0.0)         AS idf_weight_sum,
+    pp.min_shared_degree           AS min_shared_degree,
+    IFNULL(pp.via_hub, FALSE)      AS via_hub,
+    IFNULL(pp.hub_only, FALSE)     AS hub_only,
+    pp.shared_identifiers          AS shared_identifiers,
+    -- Unstructured call transcript extraction: is the caller the account holder,
+    -- or a relative/partner calling on behalf of the holder?
+    IFNULL(ca.caller_is_account_holder, TRUE) AS a_is_holder,
+    IFNULL(cb.caller_is_account_holder, TRUE) AS b_is_holder
   FROM `${CDP_PROJECT}.${CDP_DS}.candidate_pairs_fused` AS f
   JOIN `${CDP_PROJECT}.${CDP_DS}.party_search` AS a ON a.record_id = f.record_id_a
   JOIN `${CDP_PROJECT}.${CDP_DS}.party_search` AS b ON b.record_id = f.record_id_b
   LEFT JOIN surname_idf  AS si ON si.surname_norm  = a.surname_norm
   LEFT JOIN postcode_idf AS pi ON pi.postcode_norm = a.postcode_norm
+  LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.profile_projection` AS pp
+    ON pp.record_id_a = f.record_id_a AND pp.record_id_b = f.record_id_b
+  LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.stg_call_entities` AS ca
+    ON ca.record_id = f.record_id_a
+  LEFT JOIN `${CDP_PROJECT}.${CDP_DS}.stg_call_entities` AS cb
+    ON cb.record_id = f.record_id_b
 ),
 featured AS (
   SELECT
     p.*,
-    (a_acct  IS NOT NULL AND a_acct  = b_acct)  AS acct_match,
-    (a_email IS NOT NULL AND a_email = b_email) AS email_match,
-    (a_phone IS NOT NULL AND a_phone = b_phone) AS phone_match,
-    (a_dob   IS NOT NULL AND a_dob   = b_dob)   AS dob_match,
+    -- A loyalty account quoted by a relative calling about a partner's account
+    -- is a relationship edge (stage 70h), not an identity merge signal.
+    IFNULL(a_acct  IS NOT NULL AND b_acct  IS NOT NULL AND a_acct  = b_acct
+           AND a_is_holder AND b_is_holder, FALSE)                          AS acct_match,
+    IFNULL(a_acct  IS NOT NULL AND b_acct  IS NOT NULL AND a_acct  = b_acct
+           AND (NOT a_is_holder OR NOT b_is_holder), FALSE)                 AS third_party_caller_acct_match,
+    IFNULL(a_email IS NOT NULL AND b_email IS NOT NULL AND a_email = b_email, FALSE) AS email_match,
+    IFNULL(a_phone IS NOT NULL AND b_phone IS NOT NULL AND a_phone = b_phone, FALSE) AS phone_match,
+    IFNULL(a_dob   IS NOT NULL AND b_dob   IS NOT NULL AND a_dob   = b_dob,   FALSE) AS dob_match,
     -- The single most important negative feature in the system. Two
     -- records with incompatible dates of birth are two people, whatever
     -- else they share. This is what breaks the over-merge chains.
-    (a_dob IS NOT NULL AND b_dob IS NOT NULL AND a_dob != b_dob) AS dob_conflict,
-    (a_pc    IS NOT NULL AND a_pc    = b_pc)    AS postcode_match,
-    (a_pcout IS NOT NULL AND a_pcout = b_pcout) AS district_match,
-    (a_sur   IS NOT NULL AND a_sur   = b_sur)   AS surname_match,
-    (a_fore  IS NOT NULL AND a_fore  = b_fore)  AS forename_match,
-    (a_addr  IS NOT NULL AND a_addr  = b_addr)  AS address_exact,
+    IFNULL(a_dob IS NOT NULL AND b_dob IS NOT NULL AND a_dob != b_dob, FALSE)        AS dob_conflict,
+    -- 2-hop neighbourhood negative features: does each record hold its own
+    -- distinct personal identifier of the same type? Two personal mobiles,
+    -- two personal emails, or two loyalty accounts alongside a shared
+    -- household email/address is the structural signature of a household.
+    IFNULL(a_email IS NOT NULL AND b_email IS NOT NULL AND a_email != b_email, FALSE) AS unshared_email_both,
+    IFNULL(a_phone IS NOT NULL AND b_phone IS NOT NULL AND a_phone != b_phone, FALSE) AS unshared_phone_both,
+    IFNULL(a_acct  IS NOT NULL AND b_acct  IS NOT NULL AND a_acct  != b_acct,  FALSE) AS unshared_acct_both,
+    IFNULL(a_pc    IS NOT NULL AND b_pc    IS NOT NULL AND a_pc    = b_pc,    FALSE) AS postcode_match,
+    IFNULL(a_pcout IS NOT NULL AND b_pcout IS NOT NULL AND a_pcout = b_pcout, FALSE) AS district_match,
+    IFNULL(a_sur   IS NOT NULL AND b_sur   IS NOT NULL AND a_sur   = b_sur,   FALSE) AS surname_match,
+    IFNULL(a_fore  IS NOT NULL AND b_fore  IS NOT NULL AND a_fore  = b_fore,  FALSE) AS forename_match,
+    IFNULL(a_addr  IS NOT NULL AND b_addr  IS NOT NULL AND a_addr  = b_addr,  FALSE) AS address_exact,
 
-    -- Normalised edit distance. Capped, because beyond a few edits the
-    -- exact value tells you nothing except "different".
+    -- Initial-only forename checks (e.g. POS/Loyalty 'L BEKAS' vs 'LAZAROS BEKAS',
+    -- or transposed 'HOGAN XANDER' vs 'X HOGAN')
+    IFNULL(LENGTH(a_fore) = 1 OR LENGTH(b_fore) = 1, FALSE)                  AS initial_only,
+    IFNULL((LENGTH(a_fore) = 1 AND (STARTS_WITH(IFNULL(b_fore, ''), a_fore)
+                                    OR (a_sur = b_fore AND STARTS_WITH(IFNULL(b_sur, ''), a_fore))))
+        OR (LENGTH(b_fore) = 1 AND (STARTS_WITH(IFNULL(a_fore, ''), b_fore)
+                                    OR (b_sur = a_fore AND STARTS_WITH(IFNULL(a_sur, ''), b_fore)))), FALSE) AS initial_consistent,
+    IFNULL((a_source = 'POS' OR b_source = 'POS') AND NOT (a_pcout IS NOT NULL AND b_pcout IS NOT NULL AND a_pcout = b_pcout), FALSE) AS pos_no_district,
+    IFNULL((a_source = 'POS' AND a_acct IS NOT NULL) OR (b_source = 'POS' AND b_acct IS NOT NULL), FALSE) AS pos_has_acct,
+
+    -- Residential street number + street name stem match / conflict.
+    -- Catches abbreviated suburb/street suffixes ('199 MULGA GROVE JOONDANNA'
+    -- vs '199 MULGAGROVE PERTH') and flags when two records live at
+    -- genuinely different street numbers.
+    IFNULL(a_addr IS NOT NULL AND b_addr IS NOT NULL
+     AND REGEXP_EXTRACT(a_addr, r'(\d+\s+[A-Z]{4})') IS NOT NULL
+     AND REGEXP_EXTRACT(b_addr, r'(\d+\s+[A-Z]{4})') IS NOT NULL
+     AND REGEXP_EXTRACT(a_addr, r'(\d+)\s+[A-Z]{4}') = REGEXP_EXTRACT(b_addr, r'(\d+)\s+[A-Z]{4}')
+     AND EDIT_DISTANCE(
+           REGEXP_EXTRACT(a_addr, r'(\d+\s+[A-Z]{4})'),
+           REGEXP_EXTRACT(b_addr, r'(\d+\s+[A-Z]{4})'),
+           max_distance => 2
+         ) <= 1, FALSE) AS street_match,
+    IFNULL(a_addr IS NOT NULL AND b_addr IS NOT NULL
+     AND REGEXP_EXTRACT(a_addr, r'(\d+\s+[A-Z]{4})') IS NOT NULL
+     AND REGEXP_EXTRACT(b_addr, r'(\d+\s+[A-Z]{4})') IS NOT NULL
+     AND REGEXP_EXTRACT(a_addr, r'(\d+)\s+[A-Z]{4}') != REGEXP_EXTRACT(b_addr, r'(\d+)\s+[A-Z]{4}'), FALSE) AS street_conflict,
+
+    -- Normalised edit distance on forenames specifically, so a long shared
+    -- surname does not mask two different given names.
+    SAFE_DIVIDE(
+      GREATEST(LENGTH(IFNULL(a_fore, '')), LENGTH(IFNULL(b_fore, '')))
+        - EDIT_DISTANCE(IFNULL(a_fore, ''), IFNULL(b_fore, ''), max_distance => 10),
+      GREATEST(LENGTH(IFNULL(a_fore, '')), LENGTH(IFNULL(b_fore, '')))
+    ) AS forename_similarity,
+
+    -- Normalised edit distance on full name. Capped, because beyond a few
+    -- edits the exact value tells you nothing except "different".
     SAFE_DIVIDE(
       GREATEST(LENGTH(IFNULL(a_name, '')), LENGTH(IFNULL(b_name, '')))
         - EDIT_DISTANCE(IFNULL(a_name, ''), IFNULL(b_name, ''), max_distance => 12),
@@ -266,13 +330,37 @@ derived AS (
     -- because they live together, and only the given name says they are
     -- two people.
     --
-    -- The name-similarity escape hatch matters: Robert/Bob and
-    -- Mohammed/Muhammad must NOT be treated as conflicting. A pair that
-    -- trips this test is never auto-matched, but it is not rejected
-    -- either — it is exactly the kind of thing the adjudicator exists for.
-    (a_fore IS NOT NULL AND b_fore IS NOT NULL
+    -- Evaluated on forename_similarity (not full-name similarity, which a
+    -- long shared surname can inflate above 0.60), while respecting
+    -- initial-only loyalty/POS records and exact name-order transpositions.
+    -- Also catches half-transposed family names (e.g. 'HILL AMAYA' vs
+    -- 'MADDOX HILL', where the family surname is in swapped position and
+    -- the given names 'AMAYA' vs 'MADDOX' conflict).
+    IFNULL(a_fore IS NOT NULL AND b_fore IS NOT NULL
      AND a_fore != b_fore
-     AND IFNULL(name_similarity, 0) < 0.60) AS forename_conflict,
+     AND NOT initial_consistent
+     -- Prefix diminutives & two-syllable split Asian given names
+     -- (e.g. 'MIN' vs 'MINJUN', 'XIAO' vs 'XIAOMING', 'RAJ' vs 'RAJESH')
+     AND NOT (LENGTH(a_fore) >= 2 AND STARTS_WITH(b_fore, a_fore))
+     AND NOT (LENGTH(b_fore) >= 2 AND STARTS_WITH(a_fore, b_fore))
+     -- Exact or 1-2 char typo name-order transpositions
+     -- (e.g. 'MANE VAIBHAV' vs 'VAIBHAAV MANE', 'MORIN TIFFANY' vs 'TIFFANY MORIIN')
+     AND NOT (EDIT_DISTANCE(a_fore, IFNULL(b_sur, ''), max_distance => 3) <= 2
+              AND EDIT_DISTANCE(IFNULL(a_sur, ''), b_fore, max_distance => 3) <= 2)
+     -- Sole-trader business suffixes ('LESTER DECORATORS PTY LTD', 'WATKINS REST HOME SONS')
+     AND NOT REGEXP_CONTAINS( CONCAT(IFNULL(a_name, ''), ' ', IFNULL(b_name, '')),
+                              r'\b(PTY|LTD|LIMITED|SONS|DELIVERY CO|SERVICES|CONSULTING|DECORATORS|PANELBEATERS|CHARTERS)\b')
+     -- Phonetic/transliterated forenames ('YOUSSEF'/'YUSUF', 'HUSSEIN'/'HUSAYN', 'JIAN'/'CHIEN')
+     -- corroborated by matching DOB + personal email/phone
+     AND NOT (dob_match AND (email_match OR phone_match)
+              AND (SOUNDEX(a_fore) = SOUNDEX(b_fore) OR street_match OR IFNULL(forename_similarity, 0) >= 0.40))
+     AND (
+       IFNULL(forename_similarity, 0) < 0.60
+       OR (a_fore = b_sur AND LENGTH(a_sur) > 1 AND LENGTH(b_fore) > 1
+           AND EDIT_DISTANCE(a_sur, b_fore, max_distance => 5) > 2)
+       OR (a_sur = b_fore AND LENGTH(a_fore) > 1 AND LENGTH(b_sur) > 1
+           AND EDIT_DISTANCE(a_fore, b_sur, max_distance => 5) > 2)
+     ), FALSE) AS forename_conflict,
 
     -- Mutually near, and near the top of each other's neighbour list.
     -- A relative test rather than an absolute cosine threshold: on short
@@ -287,18 +375,22 @@ scored AS (
   SELECT
     d.*,
     -- Rule score in [0, 1]. Additive evidence weighted by Fellegi-Sunter
-    -- IDF frequency priors for surname and postcode, plus explicit penalty.
+    -- IDF frequency priors for surname and postcode, plus 2-hop graph
+    -- neighbourhood penalties for conflicting personal identifiers.
     LEAST(1.0, GREATEST(0.0,
         IF(acct_match,      0.50, 0.0)
       + IF(email_match,     0.45, 0.0)
       + IF(phone_match,     0.35, 0.0)
       + IF(dob_match,       0.30, 0.0)
-      + IF(postcode_match,  0.12 * postcode_idf_weight, 0.0)
-      + IF(address_exact,   0.15, 0.0)
-      + IF(surname_match,   0.08 * surname_idf_weight,  0.0)
-      + IF(forename_match,  0.08, 0.0)
-      + 0.15 * IFNULL(name_similarity, 0.0)
+      + IF(postcode_match,  0.15, 0.0)
+      + IF(address_exact,   0.18, IF(street_match, 0.12, 0.0))
+      + IF(surname_match,   0.10, 0.0)
+      + IF(forename_match,  0.10, IF(initial_consistent, 0.05, 0.0))
+      + 0.20 * IFNULL(name_similarity, 0.0)
       - IF(dob_conflict,    0.50, 0.0)
+      - IF(hub_only,        0.50, 0.0)
+      - IF(third_party_caller_acct_match, 0.45, 0.0)
+      - IF(forename_conflict AND (unshared_phone_both OR unshared_email_both OR unshared_acct_both), 0.35, 0.0)
     )) AS rule_score
   FROM derived AS d
 )
@@ -342,10 +434,30 @@ FROM scored AS s;
 --   2  A date-of-birth conflict alongside a shared account number is a
 --      genuine contradiction — a shared card, or bad data. It is not ours
 --      to resolve silently, so it goes to the adjudicator.
+--   2b Bipartite graph & 2-hop neighbourhood guards:
+--      - Promiscuous hub-only connections (call-centre numbers, store kiosks)
+--        carry zero identity weight and are rejected outright.
+--      - A relative calling support about an account holder's card
+--        (third_party_caller_acct_match) is a relationship edge, not a merge.
+--      - Conflicting forenames where surnames also conflict (flatmates
+--        sharing an email/address) or where both records hold their own
+--        distinct personal mobile/account (2-hop household signature) are
+--        rejected rather than merged.
+--      - Initial-only rows with conflicting initials, conflicting street
+--        addresses (recycled phone bridge), or conflicting 2-hop personal
+--        identifiers without a street match are rejected.
+--      - Sparse POS rows carrying a loyalty card that does not match the
+--        other record, or carrying no postcode district and no strong
+--        signals, are rejected rather than guessed.
 --   3  A shared loyalty account number, with forenames that agree, is
 --      about as good as evidence gets short of a national identifier.
 --   4  Two independent strong identifiers agreeing is the bar a steward
 --      would accept without hesitating.
+--   4b An initial-only loyalty/CRM record that matches on initial, surname,
+--      and exact residential street number + street name (with no DOB
+--      conflict and no conflicting loyalty account/email) auto-matches
+--      so the true owner claims the loyalty record and exposes any
+--      recycled-phone bridge in Pass 2.
 --   5  A record carrying almost no identity — a POS row is a surname, an
 --      initial and half a postcode — can never auto-match on fuzzy
 --      evidence. It needs a hard key or it needs a human.
@@ -372,44 +484,25 @@ SELECT
   CASE
     WHEN dob_conflict AND NOT acct_match                            THEN 'REJECT'
     WHEN dob_conflict                                               THEN 'GREY_ZONE'
+    WHEN hub_only                                                   THEN 'REJECT'
+    WHEN third_party_caller_acct_match                              THEN 'REJECT'
+    WHEN forename_conflict AND NOT dob_match AND NOT acct_match
+         AND (NOT surname_match OR unshared_phone_both OR unshared_acct_both)
+                                                                    THEN 'REJECT'
+    WHEN initial_only AND NOT acct_match AND NOT dob_match
+         AND (NOT initial_consistent OR street_conflict
+              OR unshared_email_both OR unshared_acct_both
+              OR (unshared_phone_both AND NOT street_match))
+                                                                    THEN 'REJECT'
+    WHEN (pos_no_district OR pos_has_acct) AND strong_signals = 0   THEN 'REJECT'
     WHEN acct_match AND NOT forename_conflict                       THEN 'AUTO_MATCH'
     WHEN strong_signals >= 2 AND NOT forename_conflict              THEN 'AUTO_MATCH'
-    -- Rails 5 and 7 each divert to the adjudicator with no score floor at
-    -- all. Measured against ground truth on the first real run, that put
-    -- 1,871,745 pairs in the grey zone: 1,097,960 from rail 5 at an average
-    -- combined_score of 0.054, and 773,785 from rail 7. "It needs a human"
-    -- has to mean there is something for a human to look at; at that volume
-    -- it is not a review queue, it is a bill.
-    --
-    -- Both now carry a floor, chosen from a sweep against ground truth
-    -- rather than picked. The guard each rail exists for is unchanged: a
-    -- zero-identity pair still cannot reach the AUTO_MATCH rail below, and
-    -- semantic_strong still always earns a look.
-    --
-    --   rail 5 @ 0.15 -> removes 1,032,804 junk pairs, loses 14 true
-    --   rail 7 @ 0.40 -> removes   315,124 junk pairs, loses  2 true
-    --
-    -- 16 true pairs out of 18,774 (0.085%) for a 71% smaller grey zone.
-    -- Tighter floors cost recall fast: rail 5 at 0.20 loses 72 more true
-    -- pairs to remove only 4,178 more junk.
-    -- NO NAME SIGNAL, NO CANDIDATE — at any score.
-    --
-    -- The score floor below was the wrong instrument on its own. combined_score
-    -- blends name, address, semantic and rule evidence, so a pair clears it on
-    -- address or semantic proximity while the names share nothing. Measured:
-    -- 15,859 grey-zone pairs (19%) had neither forename nor surname matching,
-    -- 14,500 of them from this rail, and only 65 were true. The adjudicator was
-    -- being asked to compare "Luis Manwlo" with "Layla Hancock" because they
-    -- shared a postcode. That is not evidence of a person, and it produces
-    -- rationales that make the whole thing look unserious.
-    --
-    -- A surname change on marriage still leaves a forename signal, so
-    -- MARRIED_NAME survives this. What gets cut is BOTH names differing with no
-    -- strong identifier to carry the pair.
-    --
-    -- Threshold swept against ground truth, not picked: 0.70 removes 13,036
-    -- junk pairs for 66 true ones. 0.65 keeps 583 more junk to save 7 true;
-    -- past 0.70 the trade turns sharply (0.65->0.70 cuts 374 junk per true lost).
+    WHEN initial_consistent
+         AND (surname_match OR a_sur = b_fore OR b_sur = a_fore
+              OR EDIT_DISTANCE(IFNULL(a_sur, ''), IFNULL(b_sur, ''), max_distance => 2) <= 1)
+         AND street_match
+         AND NOT unshared_email_both AND NOT unshared_acct_both
+                                                                    THEN 'AUTO_MATCH'
     WHEN (a_strength = 0 OR b_strength = 0)
          AND NOT (email_match OR phone_match OR acct_match)
          AND NOT semantic_strong
@@ -435,10 +528,30 @@ SELECT
       THEN 'Incompatible dates of birth and nothing to explain it.'
     WHEN dob_conflict
       THEN 'Shared account number but incompatible dates of birth — a genuine contradiction, not ours to resolve silently.'
+    WHEN hub_only
+      THEN 'Connected only through a promiscuous operational hub (call-centre phone, store kiosk email, or shared terminal).'
+    WHEN third_party_caller_acct_match
+      THEN 'Caller is a relative or partner ringing about the account holder — recorded as a RELATED_TO graph edge, never merged.'
+    WHEN forename_conflict AND NOT dob_match AND NOT acct_match
+         AND (NOT surname_match OR unshared_phone_both OR unshared_acct_both)
+      THEN 'Conflicting forenames alongside conflicting surnames or distinct personal mobile/account numbers (2-hop household signature).'
+    WHEN initial_only AND NOT acct_match AND NOT dob_match
+         AND (NOT initial_consistent OR street_conflict
+              OR unshared_email_both OR unshared_acct_both
+              OR (unshared_phone_both AND NOT street_match))
+      THEN 'Initial-only record with conflicting initial, conflicting street address, or distinct 2-hop personal identifiers.'
+    WHEN (pos_no_district OR pos_has_acct) AND strong_signals = 0
+      THEN 'POS stub has an unshared loyalty account or no postcode district and zero strong signals.'
     WHEN acct_match AND NOT forename_conflict
       THEN 'Shared loyalty account number, forenames consistent, nothing contradicting.'
     WHEN strong_signals >= 2 AND NOT forename_conflict
       THEN 'Two independent strong identifiers agree with no contradicting evidence.'
+    WHEN initial_consistent
+         AND (surname_match OR a_sur = b_fore OR b_sur = a_fore
+              OR EDIT_DISTANCE(IFNULL(a_sur, ''), IFNULL(b_sur, ''), max_distance => 2) <= 1)
+         AND street_match
+         AND NOT unshared_email_both AND NOT unshared_acct_both
+      THEN 'Consistent forename initial, surname, and residential street number/name with no conflicting personal identifiers.'
     WHEN (a_strength = 0 OR b_strength = 0)
          AND NOT (email_match OR phone_match OR acct_match)
          AND NOT semantic_strong

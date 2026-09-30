@@ -43,18 +43,13 @@ STAGES: dict[str, tuple[str, str, list[str]]] = {
                  "for them before continuing.", ["v_embedding_health"]),
     "35_embed_finalise": ("Index", "Builds the hybrid TREE_AH index for live lookup "
                           "and a separate IVF index for the bulk all-pairs join.", []),
-    "40_block": ("Block", "Cuts the comparison space from every possible pair to "
-                 "those sharing a blocking key.", ["v_blocking_funnel"]),
-    "50_candidates": ("Candidates", "Runs both retrieval legs, fuses them with "
-                      "reciprocal rank fusion, scores each pair and tiers it: "
-                      "auto-match, grey zone, or reject.",
+    "40_block": ("Block + Bipartite Graph", "Cuts the comparison space with blocking keys and builds the Bipartite Profile-Identifier Graph with closed-form IDF rarity weights.", ["v_blocking_funnel"]),
+    "50_candidates": ("Candidates + 2-Hop Features", "Runs both retrieval legs, fuses them with reciprocal rank fusion, computes 1-hop/2-hop SQL graph features, and tiers each pair: auto-match, grey zone, or reject.",
                       ["v_candidate_funnel", "v_retrieval_legs", "v_retrieval_recall"]),
-    "60_adjudicate": ("Adjudicate", "Sends only grey-zone pairs to an LLM. This is "
+    "60_adjudicate": ("Adjudicate", "Sends only grey-zone pairs to Gemini 2.5 Flash. This is "
                       "the expensive stage, which is why the tiering above it "
                       "matters so much.", ["v_adjudication_summary"]),
-    "70_graph": ("Graph", "Builds the identity graph and resolves clusters, then "
-                 "rechecks any cluster that contradicts itself rather than trusting "
-                 "transitive closure.", ["v_graph_summary", "v_cluster_sizes"]),
+    "70_graph": ("Graph + Property Graphs", "Resolves clusters across 3 methods (baseline_cc, weighted_cc, composable_cdp), runs the Pass-2 Contradiction Guard, and declares cdp_identity_graph & cdp_semantic_graph.", ["v_graph_summary", "v_cluster_sizes", "resolution_runs"]),
     "80_survivorship": ("Survivorship", "Picks the winning value per field when "
                         "sources disagree, weighted by source trust.",
                         ["v_survivorship_by_source"]),
@@ -65,9 +60,8 @@ STAGES: dict[str, tuple[str, str, list[str]]] = {
                       "identifier risk, agent grounding and activation audiences.",
                       ["v_household_waste", "v_shared_identifiers",
                        "v_activation_before_after"]),
-    "95_scorecard": ("Scorecard", "Marks its own homework against ground truth, per "
-                     "hard case, with a diagnosis of where each failure occurred.",
-                     ["v_scorecard", "v_case_results", "v_failures"]),
+    "95_scorecard": ("Scorecard", "Marks its own homework against ground truth across all 3 resolution methods and 16 planted hard-case archetypes.",
+                     ["v_scorecard", "v_method_comparison", "v_case_results", "v_failures"]),
     "96_cost_model": ("Cost model", "Measured token counts and bytes billed, "
                       "extrapolated to the customer's real volume.",
                       ["v_cost_model", "v_cost_compute", "v_cost_sensitivity"]),

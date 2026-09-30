@@ -35,6 +35,7 @@ STMT = [
     (r"CREATE\s+OR\s+REPLACE\s+TABLE\s+FUNCTION\s+`([^`]+)`", "create table function", "routine"),
     (r"CREATE\s+OR\s+REPLACE\s+FUNCTION\s+`([^`]+)`", "create function", "routine"),
     (r"CREATE\s+OR\s+REPLACE\s+PROCEDURE\s+`([^`]+)`", "create procedure", "routine"),
+    (r"CREATE\s+OR\s+REPLACE\s+PROPERTY\s+GRAPH\s+`([^`]+)`", "create property graph", "graph"),
     (r"CREATE\s+OR\s+REPLACE\s+VIEW\s+`([^`]+)`", "create view", "view"),
     (r"CREATE\s+OR\s+REPLACE\s+EXTERNAL\s+TABLE\s+`([^`]+)`", "create external table", "table"),
     (r"CREATE\s+OR\s+REPLACE\s+TABLE\s+`([^`]+)`", "create table", "table"),

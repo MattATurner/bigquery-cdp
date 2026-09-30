@@ -224,10 +224,21 @@ EVIDENCE
             o.forename_match       AS same_forename,
             o.address_exact        AS same_address,
             ROUND(IFNULL(o.name_similarity, 0), 3)    AS name_similarity_0_to_1,
+            ROUND(IFNULL(o.forename_similarity, 0), 3) AS forename_similarity_0_to_1,
             ROUND(IFNULL(o.address_similarity, 0), 3) AS address_similarity_0_to_1,
             ROUND(IFNULL(o.similarity, 0), 3)         AS semantic_similarity_0_to_1,
             o.retrieved_by         AS how_this_pair_was_found
           ) AS comparison,
+          STRUCT(
+            ROUND(IFNULL(o.idf_weight_sum, 0), 3)     AS shared_identifier_idf_weight,
+            o.min_shared_degree                       AS rarest_shared_identifier_degree,
+            IFNULL(o.via_hub, FALSE)                  AS connected_via_promiscuous_hub,
+            o.unshared_email_both                     AS both_hold_different_emails,
+            o.unshared_phone_both                     AS both_hold_different_phones,
+            o.unshared_acct_both                      AS both_hold_different_loyalty_accounts,
+            o.street_match                            AS same_street_number_and_name,
+            o.street_conflict                         AS different_street_numbers
+          ) AS graph_neighbourhood,
           STRUCT(
             ea.evidence_note AS note_on_record_a,
             eb.evidence_note AS note_on_record_b
@@ -316,8 +327,11 @@ WHERE rn = 1;
 -- confident MATCH becomes a link; a low-confidence MATCH becomes a
 -- steward task; everything else is a non-link.
 --
--- The steward tier is not an admission of failure — it is the point. A
--- system that never defers is a system that is guessing on your behalf.
+-- Even when replaying cached verdicts from the immutable ledger, the
+-- 2-hop graph neighbourhood guards (promiscuous hubs, third-party caller
+-- accounts, conflicting forenames + distinct personal identifiers, and
+-- sparse initial-only records without strong signals) are enforced here
+-- so a historical verdict never overrides a structural contradiction.
 -- ---------------------------------------------------------------------
 
 CREATE OR REPLACE TABLE `${CDP_PROJECT}.${CDP_DS}.match_decisions`
@@ -346,6 +360,16 @@ SELECT
   t.record_id_b,
   'LLM'                                     AS decided_by,
   CASE
+    WHEN t.hub_only OR t.third_party_caller_acct_match                     THEN 'NO_LINK'
+    WHEN t.forename_conflict AND NOT t.dob_match AND NOT t.acct_match
+         AND (NOT t.surname_match OR t.unshared_phone_both OR t.unshared_acct_both)
+                                                                           THEN 'NO_LINK'
+    WHEN t.initial_only AND NOT t.acct_match AND NOT t.dob_match
+         AND (NOT t.initial_consistent OR t.street_conflict
+              OR t.unshared_email_both OR t.unshared_acct_both
+              OR (t.unshared_phone_both AND NOT t.street_match))
+                                                                           THEN 'NO_LINK'
+    WHEN (t.pos_no_district OR t.pos_has_acct) AND t.strong_signals = 0    THEN 'NO_LINK'
     WHEN j.verdict = 'MATCH' AND j.confidence >= ${CDP_ACCEPT_CONFIDENCE}  THEN 'LINK'
     WHEN j.verdict = 'MATCH' AND j.confidence >= ${CDP_STEWARD_CONFIDENCE} THEN 'STEWARD'
     WHEN j.verdict = 'UNCERTAIN'                                           THEN 'STEWARD'

@@ -392,3 +392,251 @@ ORDER BY
   t.combined_score DESC,
   e.record_id_a,
   e.record_id_b;
+
+
+-- ---------------------------------------------------------------------
+-- 95f · Comparative method metrics (baseline_cc vs weighted_cc vs composable_cdp)
+--
+-- Scores all three resolution methods stored in wesid_assignments against
+-- ground truth, overall ('ALL') and broken down by pathology class:
+--   · hub            — pairs involving a promiscuous call-centre/kiosk hub
+--   · household      — two people sharing an address, email, phone or call
+--   · supersession   — recycled phones / stale addresses (OVERMERGE_BAIT)
+--   · semantic_fuzzy — nicknames, transliterations, typos, sparse records
+--   · clean          — routine multi-system customer duplicates
+-- ---------------------------------------------------------------------
+
+CREATE OR REPLACE TABLE `${CDP_PROJECT}.${CDP_DS}.method_metrics`
+AS
+WITH hub_records AS (
+  SELECT DISTINCT h.record_id
+  FROM `${CDP_PROJECT}.${CDP_DS}.has_identifier` AS h
+  JOIN `${CDP_PROJECT}.${CDP_DS}.identifier`     AS i USING (identifier_id)
+  WHERE i.is_promiscuous
+),
+record_pathology AS (
+  SELECT
+    t.record_id,
+    t.true_person_id,
+    t.case_type,
+    hr.record_id IS NOT NULL AS touches_hub,
+    CASE
+      WHEN t.case_type IN ('HOUSEHOLD', 'SHARED_EMAIL', 'SIBLING_TRAP', 'UNSTRUCTURED_ONLY')
+        THEN 'household'
+      WHEN t.case_type IN ('OVERMERGE_BAIT', 'STALE_ADDRESS', 'POSTCODE_NEAR_MISS', 'SINGLETON')
+        THEN 'supersession'
+      WHEN t.case_type IN ('MARRIED_NAME', 'DIACRITIC_VARIANT', 'TRANSLITERATION',
+                           'NAME_ORDER', 'NAME_ORDER_TRAP', 'ACCOUNT_ONLY', 'SOLE_TRADER',
+                           'NICKNAME', 'SURNAME_CHANGE', 'COMPOUND_SURNAME', 'TYPO_TRAP',
+                           'DOB_TRANSPOSE', 'SPARSE')
+        THEN 'semantic_fuzzy'
+      WHEN hr.record_id IS NOT NULL
+        THEN 'hub'
+      ELSE 'clean'
+    END AS record_class
+  FROM `${CDP_PROJECT}.${CDP_DS_TRUTH}.person_truth` AS t
+  LEFT JOIN hub_records AS hr USING (record_id)
+),
+truth_pairs AS (
+  SELECT
+    a.record_id AS record_id_a,
+    b.record_id AS record_id_b,
+    CASE
+      WHEN a.record_class = 'household'      OR b.record_class = 'household'      THEN 'household'
+      WHEN a.record_class = 'supersession'   OR b.record_class = 'supersession'   THEN 'supersession'
+      WHEN a.record_class = 'semantic_fuzzy' OR b.record_class = 'semantic_fuzzy' THEN 'semantic_fuzzy'
+      WHEN a.touches_hub                     OR b.touches_hub                     THEN 'hub'
+      ELSE 'clean'
+    END AS pair_class
+  FROM record_pathology AS a
+  JOIN record_pathology AS b
+    ON a.true_person_id = b.true_person_id
+   AND a.record_id < b.record_id
+),
+methods AS (
+  SELECT DISTINCT method, run_id
+  FROM `${CDP_PROJECT}.${CDP_DS}.wesid_assignments`
+  WHERE is_latest
+),
+-- Materialise predicted pairs for normal clusters (component_size < 50),
+-- and count giant hairball components (component_size >= 50) analytically
+-- so 3,000-node baseline_cc hub hairballs evaluate in <2 seconds.
+small_pred_pairs AS (
+  SELECT
+    a.method,
+    a.run_id,
+    a.record_id AS record_id_a,
+    b.record_id AS record_id_b
+  FROM `${CDP_PROJECT}.${CDP_DS}.wesid_assignments` AS a
+  JOIN `${CDP_PROJECT}.${CDP_DS}.wesid_assignments` AS b
+    ON a.method = b.method
+   AND a.run_id = b.run_id
+   AND a.wesid  = b.wesid
+   AND a.record_id < b.record_id
+  WHERE a.is_latest AND a.component_size < 50
+),
+hairball_truth_matches AS (
+  SELECT
+    a.method,
+    a.run_id,
+    t.record_id_a,
+    t.record_id_b,
+    t.pair_class
+  FROM truth_pairs AS t
+  JOIN `${CDP_PROJECT}.${CDP_DS}.wesid_assignments` AS a
+    ON a.record_id = t.record_id_a AND a.is_latest AND a.component_size >= 50
+  JOIN `${CDP_PROJECT}.${CDP_DS}.wesid_assignments` AS b
+    ON b.record_id = t.record_id_b AND b.is_latest
+   AND b.method = a.method AND b.run_id = a.run_id AND b.wesid = a.wesid
+),
+hairball_fp_totals AS (
+  SELECT
+    c.method,
+    c.run_id,
+    SUM(CAST(c.n_profiles * (c.n_profiles - 1) / 2 AS INT64))
+      - IFNULL(MAX(ht.tp_in_hairballs), 0) AS hairball_fp
+  FROM `${CDP_PROJECT}.${CDP_DS}.wesid_cluster` AS c
+  LEFT JOIN (
+    SELECT method, run_id, COUNT(*) AS tp_in_hairballs
+    FROM hairball_truth_matches
+    GROUP BY 1, 2
+  ) AS ht USING (method, run_id)
+  WHERE c.is_latest AND c.n_profiles >= 50
+  GROUP BY c.method, c.run_id
+),
+all_non_hairball_pairs AS (
+  SELECT m.method, m.run_id, t.record_id_a, t.record_id_b, TRUE AS is_true, FALSE AS is_pred
+  FROM truth_pairs AS t
+  CROSS JOIN methods AS m
+  UNION ALL
+  SELECT method, run_id, record_id_a, record_id_b, FALSE AS is_true, TRUE AS is_pred
+  FROM small_pred_pairs
+  UNION ALL
+  SELECT method, run_id, record_id_a, record_id_b, FALSE AS is_true, TRUE AS is_pred
+  FROM hairball_truth_matches
+),
+joined AS (
+  SELECT
+    method,
+    run_id,
+    record_id_a,
+    record_id_b,
+    LOGICAL_OR(is_true) AS is_true,
+    LOGICAL_OR(is_pred) AS is_pred
+  FROM all_non_hairball_pairs
+  GROUP BY 1, 2, 3, 4
+),
+classed AS (
+  SELECT
+    j.*,
+    CASE
+      WHEN ra.record_class = 'household'      OR rb.record_class = 'household'      THEN 'household'
+      WHEN ra.record_class = 'supersession'   OR rb.record_class = 'supersession'   THEN 'supersession'
+      WHEN ra.record_class = 'semantic_fuzzy' OR rb.record_class = 'semantic_fuzzy' THEN 'semantic_fuzzy'
+      WHEN ra.touches_hub                     OR rb.touches_hub                     THEN 'hub'
+      ELSE 'clean'
+    END AS pair_class
+  FROM joined AS j
+  JOIN record_pathology AS ra ON ra.record_id = j.record_id_a
+  JOIN record_pathology AS rb ON rb.record_id = j.record_id_b
+),
+base_counts AS (
+  SELECT
+    method,
+    run_id,
+    pair_class,
+    COUNTIF(is_true AND is_pred)     AS tp,
+    COUNTIF(NOT is_true AND is_pred) AS fp,
+    COUNTIF(is_true AND NOT is_pred) AS fn
+  FROM classed
+  GROUP BY 1, 2, 3
+
+  UNION ALL
+
+  SELECT
+    method,
+    run_id,
+    'ALL'                            AS pair_class,
+    COUNTIF(is_true AND is_pred)     AS tp,
+    COUNTIF(NOT is_true AND is_pred) AS fp,
+    COUNTIF(is_true AND NOT is_pred) AS fn
+  FROM classed
+  GROUP BY 1, 2
+),
+adjusted_counts AS (
+  SELECT
+    b.method,
+    b.run_id,
+    b.pair_class,
+    b.tp,
+    b.fp + CASE
+      WHEN b.pair_class IN ('ALL', 'hub') THEN IFNULL(h.hairball_fp, 0)
+      ELSE 0
+    END AS fp,
+    b.fn
+  FROM base_counts AS b
+  LEFT JOIN hairball_fp_totals AS h USING (method, run_id)
+),
+clusters AS (
+  SELECT
+    method,
+    run_id,
+    COUNT(*)                            AS n_components,
+    MAX(n_profiles)                     AS largest_component,
+    COUNTIF(is_hairball)                AS n_hairballs,
+    SUM(IF(is_hairball, n_profiles, 0)) AS profiles_in_hairballs
+  FROM `${CDP_PROJECT}.${CDP_DS}.wesid_cluster`
+  WHERE is_latest
+  GROUP BY 1, 2
+)
+SELECT
+  c.method,
+  c.run_id,
+  c.pair_class,
+  c.tp,
+  c.fp,
+  c.fn,
+  ROUND(SAFE_DIVIDE(c.tp, c.tp + c.fp), 4)                AS precision,
+  ROUND(SAFE_DIVIDE(c.tp, c.tp + c.fn), 4)                AS recall,
+  ROUND(SAFE_DIVIDE(2 * c.tp, 2 * c.tp + c.fp + c.fn), 4) AS f1,
+  k.n_components,
+  k.largest_component,
+  k.n_hairballs,
+  k.profiles_in_hairballs,
+  CURRENT_TIMESTAMP()                                     AS evaluated_at
+FROM adjusted_counts AS c
+LEFT JOIN clusters   AS k USING (method, run_id);
+
+CREATE OR REPLACE VIEW `${CDP_PROJECT}.${CDP_DS}.v_method_comparison` AS
+SELECT
+  method,
+  pair_class,
+  pair_class AS pathology,
+  tp,
+  fp,
+  fn,
+  precision,
+  recall,
+  f1,
+  n_components,
+  largest_component,
+  n_hairballs,
+  profiles_in_hairballs
+FROM `${CDP_PROJECT}.${CDP_DS}.method_metrics`
+ORDER BY
+  CASE pair_class
+    WHEN 'ALL'            THEN 0
+    WHEN 'hub'            THEN 1
+    WHEN 'household'      THEN 2
+    WHEN 'supersession'   THEN 3
+    WHEN 'semantic_fuzzy' THEN 4
+    WHEN 'clean'          THEN 5
+    ELSE 6
+  END,
+  CASE method
+    WHEN 'baseline_cc'    THEN 0
+    WHEN 'weighted_cc'    THEN 1
+    WHEN 'composable_cdp' THEN 2
+    ELSE 3
+  END;
+
