@@ -775,11 +775,6 @@ body.show-chrome #chrome,
   white-space: pre;
 }
 </style>
-  <meta name="tags" content="BigQuery, Composable CDP, Identity Resolution">
-  <meta name="deck-role" content="master">
-  <meta name="catalog-visibility" content="visible">
-  <meta name="git-commit" content="d0fc3f4">
-  <meta name="published-at" content="2026-10-02T01:11:23Z">
 </head>
 <body class="show-chrome">
 
@@ -805,12 +800,12 @@ body.show-chrome #chrome,
             <div class="stat-lbl">Data Movement</div>
           </div>
           <div>
-            <div class="stat-val">96.4% F1</div>
-            <div class="stat-lbl">Match Accuracy</div>
+            <div class="stat-val">99.2%</div>
+            <div class="stat-lbl">Match Precision</div>
           </div>
           <div>
-            <div class="stat-val">~$142</div>
-            <div class="stat-lbl">Per 15M Records</div>
+            <div class="stat-val">0.39%</div>
+            <div class="stat-lbl">Pairs Sent to AI</div>
           </div>
         </div>
 
@@ -856,7 +851,7 @@ body.show-chrome #chrome,
       <div class="grid-4 scaffold-group">
         <div class="card" data-active-step="1">
           <div>
-            <div class="card-tag">CRM · TRUST 0.92</div>
+            <div class="card-tag">CRM · TRUST 9/10</div>
             <h3>Jonathan Smith</h3>
             <p class="card-desc"><strong>Complete profile:</strong> 12 Wattle Ave, Newtown 2042 with verified birth date.</p>
           </div>
@@ -865,7 +860,7 @@ body.show-chrome #chrome,
 
         <div class="card green-top" data-active-step="2">
           <div>
-            <div class="card-tag">E-COMMERCE · TRUST 0.75</div>
+            <div class="card-tag">E-COMMERCE · TRUST 6/10</div>
             <h3>J. Smith</h3>
             <p class="card-desc"><strong>Guest checkout:</strong> Missing street address; only first initial and postcode.</p>
           </div>
@@ -874,7 +869,7 @@ body.show-chrome #chrome,
 
         <div class="card yellow-top" data-active-step="3">
           <div>
-            <div class="card-tag">LOYALTY · TRUST 0.80</div>
+            <div class="card-tag">LOYALTY · TRUST 7/10</div>
             <h3>Jon Smyth</h3>
             <p class="card-desc"><strong>Phonetic spelling:</strong> Uses nickname and shares loyalty card with spouse.</p>
           </div>
@@ -1020,7 +1015,7 @@ body.show-chrome #chrome,
        data-notes="<strong>Step 0 (Overview):</strong> Here are the five pipeline stages running inside a single BigQuery dataset."
        data-notes-1="<strong>Step 1 (Access):</strong> Read raw CRM tables, web streams, and Cloud Storage audio files in place."
        data-notes-2="<strong>Step 2 (Process):</strong> Clean names and phone numbers in SQL and parse call transcripts with Gemini."
-       data-notes-3="<strong>Step 3 (Ground):</strong> Find candidates with vector + keyword search, weight by surname rarity, and judge grey-zone pairs."
+       data-notes-3="<strong>Step 3 (Ground):</strong> Weigh shared identifiers by rarity, find candidates with vector + keyword search, and let Gemini judge the grey zone."
        data-notes-4="<strong>Step 4 (Relate):</strong> Group linked records into clusters in SQL and pick the most trusted value per column."
        data-notes-5="<strong>Step 5 (Activate):</strong> Serve verified profiles to live checkout, paid media, and BI dashboards.">
     <div class="slide-header">
@@ -1090,7 +1085,7 @@ body.show-chrome #chrome,
           <strong>Clean keys:</strong> Builds one canonical <code>match_key</code> per record.
         </div>
         <div class="callout-card" data-build="3" data-active-step="3">
-          <strong>Smart filter:</strong> Sends only the tricky 12% of pairs to Gemini.
+          <strong>Smart filter:</strong> Sends only the hardest 0.39% of pairs to Gemini.
         </div>
         <div class="callout-card" data-build="4" data-active-step="4">
           <strong>Safe clusters:</strong> Cuts weak links that merge whole households.
@@ -1280,6 +1275,114 @@ body.show-chrome #chrome,
     </div>
   </div>
 
+
+  <!-- =====================================================================
+       NEW: NAIVE GRAPH HAIRBALL vs RARITY WEIGHTS (Before / After)
+       ===================================================================== -->
+  <div class="s" data-idx="8a" data-steps="1" data-sql-stage="40_block"
+       data-notes="<strong>Step 0 (Naive graph):</strong> Many CDPs link two records whenever they share any identifier. That breaks on shared identifiers. One store kiosk email appears on 559 receipts, and seven store and call-centre identifiers each appear on 419 to 575 records. Linking on them chains 5,195 different customers into one cluster. Precision falls to 0.06%, with 13.5 million false pairs."
+       data-notes-1="<strong>Step 1 (Rarity weights):</strong> Stage 40 builds a graph of records and the identifiers they hold, then gives each identifier a rarity weight: LN(records / records sharing it). An email shared by two records scores about 9.2; the kiosk email scores about 3.6. Identifiers on more than 25 records are flagged as hubs and cannot link people on their own. The giant cluster disappears and precision rises to 95.9%.">
+    <div class="slide-header">
+      <div class="header-top">
+        <span class="badge">LAYER 03 · GRAPH RARITY</span>
+        <div class="header-actions">
+          <button class="sql-pill" onclick="openSqlModal('40_block')">&lt;/&gt; View Rarity SQL in 40_block.sql</button>
+        </div>
+      </div>
+      <h2>Shared store emails make naive graphs merge 5,195 strangers into one</h2>
+    </div>
+
+    <div class="slide-body">
+      <div class="grid-2 scaffold-group">
+        <div class="card red-top" data-active-step="0" style="min-height: 330px;">
+          <div>
+            <div class="card-tag" style="color: var(--danger);">BEFORE · LINK ON ANY SHARED ID</div>
+            <h3 style="font-size: 21px; margin-bottom: 14px;">One Giant False Customer</h3>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <p><strong>Kiosk email on 559 receipts:</strong> Links every shopper who typed it.</p>
+              <p><strong>Seven shared hubs:</strong> Store and call-centre IDs used 419–575 times each.</p>
+            </div>
+          </div>
+          <div class="card-footer" style="color: var(--danger);">0.06% precision · 13.5M false pairs</div>
+        </div>
+
+        <div class="card green-top" data-build="1" data-active-step="1" style="min-height: 330px;">
+          <div>
+            <div class="card-tag" style="color: var(--secondary);">AFTER · WEIGH EACH ID BY RARITY</div>
+            <h3 style="font-size: 21px; margin-bottom: 14px;">Rare IDs Count, Hubs Do Not</h3>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <p><strong>Rarity weight:</strong> Email shared by 2 records scores 9.2; kiosk email scores 3.6.</p>
+              <p><strong>Hubs flagged:</strong> IDs on more than 25 records never link people alone.</p>
+            </div>
+          </div>
+          <div class="card-footer" style="color: var(--secondary);">0 giant clusters · 95.9% precision</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       NEW: WHAT A GNN LEARNS, CALCULATED IN SQL (3 Cards + 3 Aligned Callouts)
+       ===================================================================== -->
+  <div class="s" data-idx="8b" data-steps="3" data-sql-stage="50_candidates"
+       data-notes="<strong>Step 0:</strong> A graph neural network such as GraphSAGE learns about a record by looking at its neighbours, then at its neighbours' neighbours. In an identity graph, those two hops tell you two things: how rare a shared identifier is, and whether the two records hold other identifiers that disagree. We already know what emails, phones and names are, so we can calculate those signals directly."
+       data-notes-1="<strong>Step 1 (1 hop: rarity):</strong> One hop from a record is the identifiers it holds. The rarity weight is LN(records / records sharing the identifier), computed in 40_block.sql. This is the signal a GNN's first layer learns."
+       data-notes-2="<strong>Step 2 (2 hops: conflicts):</strong> Two hops is record to identifier to the other record, plus what else that record holds. If both records have personal phones or emails and they differ, that is evidence of two people, for example siblings sharing a family email. 50_candidates.sql computes unshared_email_both and unshared_phone_both for every pair."
+       data-notes-3="<strong>Step 3 (No training pipeline):</strong> Because these are plain SQL columns, they are recalculated on every run. There is no export to GPUs, no model to retrain, and no stale node embeddings when new customers arrive. The trade-off: a GNN can learn patterns nobody thought to write down. We cover that gap with hybrid search and Gemini, which see the full records.">
+    <div class="slide-header">
+      <div class="header-top">
+        <span class="badge">LAYER 03 · GRAPH FEATURES (NO GNN TRAINING)</span>
+        <div class="header-actions">
+          <button class="sql-pill" onclick="openSqlModal('50_candidates')">&lt;/&gt; View 2-Hop SQL in 50_candidates.sql</button>
+        </div>
+      </div>
+      <h2>SQL graph features learn what a GNN learns, with no model to retrain</h2>
+    </div>
+
+    <div class="slide-body">
+      <div class="grid-3 scaffold-group">
+        <div class="card" data-active-step="1">
+          <div>
+            <div class="card-tag">1 HOP · RARITY</div>
+            <h3>How Rare Is the Shared ID?</h3>
+            <p class="card-desc"><strong>Rarity weight:</strong> A rare email scores high; a store kiosk email scores low.</p>
+          </div>
+          <div class="card-footer">idf_weight · 40_block.sql</div>
+        </div>
+
+        <div class="card green-top" data-active-step="2">
+          <div>
+            <div class="card-tag">2 HOPS · CONFLICTS</div>
+            <h3>Do Their Other IDs Disagree?</h3>
+            <p class="card-desc"><strong>Different personal phones:</strong> Siblings sharing a family email stay apart.</p>
+          </div>
+          <div class="card-footer">unshared_phone_both · 50_candidates.sql</div>
+        </div>
+
+        <div class="card yellow-top" data-active-step="3">
+          <div>
+            <div class="card-tag">NO TRAINING PIPELINE</div>
+            <h3>Recalculate Every Run</h3>
+            <p class="card-desc"><strong>Plain SQL columns:</strong> New customers get features at once. No GPUs, no stale embeddings.</p>
+          </div>
+          <div class="card-footer" style="color: var(--accent);">Readable · auditable · repeatable</div>
+        </div>
+      </div>
+
+      <div class="callout-strip-3 scaffold-group">
+        <div class="callout-card" data-build="1" data-active-step="1">
+          <strong>Same signal as GraphSAGE:</strong> Its first layer learns neighbour rarity; SQL calculates it exactly.
+        </div>
+        <div class="callout-card" data-build="2" data-active-step="2">
+          <strong>The neighbour&apos;s neighbour:</strong> Its second layer sees conflicting IDs; SQL compares them directly.
+        </div>
+        <div class="callout-card" data-build="3" data-active-step="3">
+          <strong>What you give up:</strong> Patterns nobody wrote down. Hybrid search and Gemini cover that gap.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- =====================================================================
        SLIDE 8: HYBRID SEARCH + IDF RARITY WEIGHTS (3 Cards + 3 Aligned Callouts)
        ===================================================================== -->
@@ -1287,7 +1390,7 @@ body.show-chrome #chrome,
        data-notes="<strong>Step 0:</strong> Why do pure vector CDPs fail? Because vectors miss exact account numbers, and flat rules over-merge common surnames."
        data-notes-1="<strong>Step 1 (Vector Search):</strong> Finds records with similar names and addresses even when spelling or word order changes."
        data-notes-2="<strong>Step 2 (Exact Keyword Blocking):</strong> Matches exact postcodes (SW1A 2AA), phone digits, and account IDs that vectors blur."
-       data-notes-3="<strong>Step 3 (Surname Rarity Weighting):</strong> In 50_candidates.sql, we weight surname matches by LN(N / freq) so rare names score higher than 'Smith'.">
+       data-notes-3="<strong>Step 3 (Surname Rarity Weighting):</strong> In 50_candidates.sql, surname matches are weighted by LN(N / freq) / 5, bounded to 0.50x–1.80x, so a rare surname counts for more than 'Smith'.">
     <div class="slide-header">
       <div class="header-top">
         <span class="badge">LAYER 03 · HYBRID SEARCH &amp; RARITY SCORING</span>
@@ -1323,21 +1426,21 @@ body.show-chrome #chrome,
           <div>
             <div class="card-tag">UPGRADE · RARITY WEIGHTING (IDF)</div>
             <h3>Score Rare Names Higher</h3>
-            <p class="card-desc"><strong>Smart log-likelihood weights:</strong> Scales surname &amp; postcode scores by <code>LN(N / freq)</code> between <code>0.55x</code> and <code>1.45x</code>.</p>
+            <p class="card-desc"><strong>Smart log-likelihood weights:</strong> Scales surname scores by <code>LN(N / freq)</code>, from <code>0.50x</code> to <code>1.80x</code>.</p>
           </div>
-          <div class="card-footer" style="color: var(--accent);">Smith: 0.55x · Featherstonehaugh: 1.45x</div>
+          <div class="card-footer" style="color: var(--accent);">Common surnames count less</div>
         </div>
       </div>
 
       <div class="callout-strip-3 scaffold-group">
         <div class="callout-card" data-build="1" data-active-step="1">
-          <strong>98.4% recall:</strong> Finds true matches even when street addresses are abbreviated.
+          <strong>Vectors add 2,441 pairs:</strong> True matches that keyword search alone misses.
         </div>
         <div class="callout-card" data-build="2" data-active-step="2">
-          <strong>Zero lost IDs:</strong> Guarantees shared account numbers and emails are always paired.
+          <strong>Keywords add 4,298 pairs:</strong> True matches that vector search alone misses.
         </div>
         <div class="callout-card" data-build="3" data-active-step="3">
-          <strong>Stops Smith traps:</strong> Two unrelated people named <em>Smith</em> never auto-merge on surname alone.
+          <strong>Together, 94.3%:</strong> Hybrid search finds 94.3% of true pairs (keyword 81.3%, vector 71.4%).
         </div>
       </div>
     </div>
@@ -1347,10 +1450,10 @@ body.show-chrome #chrome,
        SLIDE 9: TWO-THRESHOLD COST FUNNEL (3 Cards + 3 Aligned Callouts)
        ===================================================================== -->
   <div class="s" data-idx="9" data-steps="3" data-sql-stage="60_adjudicate"
-       data-notes="<strong>Step 0:</strong> Calling an AI model on every pair in a 15M-record database would cost too much. Our two-threshold SQL filter solves this."
-       data-notes-1="<strong>Step 1 (Auto-Match >= 0.72):</strong> 85% of matching pairs have strong SQL evidence and merge automatically for $0 AI cost."
-       data-notes-2="<strong>Step 2 (Grey Zone 0.40 to 0.72):</strong> Only the tricky 12% of pairs call Gemini 3.5 Flash for human-like judgement."
-       data-notes-3="<strong>Step 3 (Auto-Reject < 0.40):</strong> Low-scoring pairs are dropped in SQL immediately, keeping total AI cost for 15M records under $150.">
+       data-notes="<strong>Step 0:</strong> Our 20,000-record test produces 10.8 million candidate pairs. Sending all of them to an AI model would cost about $34,000. SQL rules settle almost all of them first."
+       data-notes-1="<strong>Step 1 (Strong evidence):</strong> 4,345 pairs (0.04%) merge in SQL: two strong identifiers agree, a loyalty account is shared with consistent names, or the combined score is at least 0.92."
+       data-notes-2="<strong>Step 2 (Grey zone):</strong> 41,769 pairs (0.39%) go to Gemini 3.5 Flash: one strong identifier, a close name match, or a score from 0.72 to 0.92. Each call is about 1,570 tokens in and 90 out, so this small slice is where nearly all the AI cost goes."
+       data-notes-3="<strong>Step 3 (Clear non-match):</strong> 99.57% of pairs drop in SQL at no AI cost. One clean rebuild of the 20,000 records costs $131.59 in model spend ($6.58 per 1,000 records), measured from a 300-call token sample. A full rebuild of 15 million records would be roughly $98,700 as a linear floor, before BigQuery compute. In steady state you only send new or changed records through, and tighter thresholds trade recall for cost (v_cost_sensitivity).">
     <div class="slide-header">
       <div class="header-top">
         <span class="badge">LAYER 03 · COST FUNNEL &amp; AI JUDGEMENT</span>
@@ -1359,48 +1462,48 @@ body.show-chrome #chrome,
           <button class="sql-pill" onclick="openSqlModal('96_cost_model')">&lt;/&gt; View 96_cost_model.sql</button>
         </div>
       </div>
-      <h2>Score pairs in SQL first so Gemini 3.5 Flash only reviews the tricky 12%</h2>
+      <h2>Score pairs in SQL first so Gemini only reviews the hardest 0.39%</h2>
     </div>
 
     <div class="slide-body">
       <div class="grid-3 scaffold-group">
         <div class="card green-top" data-active-step="1">
           <div>
-            <div class="card-tag" style="color: var(--secondary);">TIER 1 · SCORE ≥ 0.72</div>
+            <div class="card-tag" style="color: var(--secondary);">TIER 1 · STRONG EVIDENCE</div>
             <h3>Fast SQL Auto-Match</h3>
-            <p class="card-desc"><strong>Clear matches:</strong> Pairs sharing verified email, phone, or rare surname + birth date merge in SQL.</p>
+            <p class="card-desc"><strong>Clear matches:</strong> Two strong identifiers agree, or the score is at least 0.92.</p>
           </div>
-          <div class="card-metric" style="color: var(--secondary);">~85% · $0 AI Cost</div>
+          <div class="card-metric" style="color: var(--secondary);">0.04% · $0 AI</div>
         </div>
 
         <div class="card" data-active-step="2">
           <div>
-            <div class="card-tag" style="color: var(--primary);">TIER 2 · GREY ZONE (0.40–0.72)</div>
+            <div class="card-tag" style="color: var(--primary);">TIER 2 · GREY ZONE (0.72–0.92)</div>
             <h3>Gemini 3.5 Flash Judge</h3>
             <p class="card-desc"><strong>Tricky middle cases:</strong> Calls <code>AI.GENERATE</code> (<span class="badge-inline">gemini-3.5-flash</span>) to separate spouses and name changes.</p>
           </div>
-          <div class="card-metric" style="color: var(--primary);">~12% · Pennies / 1k</div>
+          <div class="card-metric" style="color: var(--primary);">0.39% · 41,769 pairs</div>
         </div>
 
         <div class="card red-top" data-active-step="3">
           <div>
-            <div class="card-tag" style="color: var(--danger);">TIER 3 · SCORE &lt; 0.40</div>
+            <div class="card-tag" style="color: var(--danger);">TIER 3 · CLEAR NON-MATCH</div>
             <h3>Fast SQL Auto-Reject</h3>
-            <p class="card-desc"><strong>Clear non-matches:</strong> Weak candidate pairs are dropped in SQL before touching Vertex AI.</p>
+            <p class="card-desc"><strong>Dropped in SQL:</strong> Hub-only links, birth-date conflicts, and weak scores.</p>
           </div>
-          <div class="card-metric" style="color: var(--text-muted);">Dropped at $0</div>
+          <div class="card-metric" style="color: var(--text-muted);">99.57% · $0 AI</div>
         </div>
       </div>
 
       <div class="callout-strip-3 scaffold-group">
         <div class="callout-card" data-build="1" data-active-step="1">
-          <strong>SQL does the heavy lifting:</strong> 85% of links resolve in seconds using standard BigQuery compute.
+          <strong>SQL settles 99.6%:</strong> Only 41,769 of 10.8M candidate pairs need AI.
         </div>
         <div class="callout-card" data-build="2" data-active-step="2">
-          <strong>Replaces manual review:</strong> Gemini 3.5 Flash resolves grey-zone pairs that legacy tools dump on stewards.
+          <strong>Replaces manual review:</strong> Gemini judges every grey-zone pair and saves its reason.
         </div>
         <div class="callout-card" data-build="3" data-active-step="3">
-          <strong>Predictable bill:</strong> Running 15,000,000 customer records costs ~$142 in total Vertex AI fees.
+          <strong>Measured bill:</strong> $131.59 per full rebuild of 20,000 records ($6.58 per 1,000).
         </div>
       </div>
     </div>
@@ -1413,7 +1516,7 @@ body.show-chrome #chrome,
        data-notes="<strong>Step 0:</strong> How do we make Gemini 3.5 Flash both accurate on household traps and safe against malicious input?"
        data-notes-1="<strong>Step 1 (Tag the Trap Type):</strong> SQL tags whether a pair looks like a household sibling trap or a married surname change before calling Gemini."
        data-notes-2="<strong>Step 2 (Save Written Proof):</strong> Gemini returns a structured verdict with confidence score and plain-English reasoning."
-       data-notes-3="<strong>Step 3 (Block Prompt Injection):</strong> If a user types 'Ignore previous instructions' in their address, Gemini flags injection_detected = TRUE.">
+       data-notes-3="<strong>Step 3 (Block Prompt Injection):</strong> The prompt tells Gemini that record text is untrusted data, and Stage 20 flags injected tickets before matching. In this run, 20 grey-zone pairs involved an injected ticket: 11 no-match, 7 uncertain, 2 match, and both matches are correct against ground truth. Do not rely on the model's own injection_detected flag by itself: it fired on only one of those two.">
     <div class="slide-header">
       <div class="header-top">
         <span class="badge">LAYER 03 · EXPLAINABILITY &amp; SAFETY</span>
@@ -1451,19 +1554,19 @@ body.show-chrome #chrome,
             <h3>Block Prompt Injection</h3>
             <p class="card-desc"><strong>Strict output schema:</strong> Malicious commands inside customer text fields trigger <code>injection_detected = TRUE</code>.</p>
           </div>
-          <div class="card-footer" style="color: var(--danger);">Quarantined from graph</div>
+          <div class="card-footer" style="color: var(--danger);">Flag stored for review</div>
         </div>
       </div>
 
       <div class="callout-strip-3 scaffold-group">
         <div class="callout-card" data-build="1" data-active-step="1">
-          <strong>60% fewer false merges:</strong> Warning Gemini about shared household addresses stops spouse merges.
+          <strong>2 household false merges:</strong> Measured across all 20,000 test records.
         </div>
         <div class="callout-card" data-build="2" data-active-step="2">
           <strong>No black-box guesses:</strong> Stewards can query the exact reason for every merge in BigQuery.
         </div>
         <div class="callout-card" data-build="3" data-active-step="3">
-          <strong>Safe against attackers:</strong> Bad input strings cannot trick the pipeline into merging accounts.
+          <strong>Tested against attackers:</strong> 20 injected-ticket pairs judged, zero false merges.
         </div>
       </div>
     </div>
@@ -1474,9 +1577,9 @@ body.show-chrome #chrome,
        ===================================================================== -->
   <div class="s" data-idx="11" data-steps="3" data-sql-stage="70_graph"
        data-notes="<strong>Step 0:</strong> Matching pairs is not enough—we have to group linked records into customer clusters without merging whole families."
-       data-notes-1="<strong>Step 1 (SQL Graph Loop):</strong> A standard BigQuery LOOP passes the lowest record ID across matched edges until every cluster converges."
-       data-notes-2="<strong>Step 2 (Catch Bad Clusters):</strong> SQL checks every cluster for conflicting tax IDs or oversized household chains."
-       data-notes-3="<strong>Step 3 (Triangle Consensus):</strong> In 70_graph.sql, edges backed by shared neighbors (a triangle u-w-v) stay intact while weak single bridges are cut.">
+       data-notes-1="<strong>Step 1 (SQL Graph Loop):</strong> A stored procedure (sp_connected_components) passes the lowest record ID across accepted links in a WHILE loop until no label changes."
+       data-notes-2="<strong>Step 2 (Catch Bad Clusters):</strong> Stage 70c checks every cluster for contradictions: more than one date of birth, or full forenames that disagree with different emails and phones bridged through an initial-only stub. That is the over-merge trap where A matches B, B matches C, but A and C are different people."
+       data-notes-3="<strong>Step 3 (Triangle Consensus):</strong> Inside a suspect cluster, a link survives only if it is strong evidence or is backed by a shared neighbour (a triangle) with no date-of-birth conflict. Weak single bridges are cut and the cluster is re-resolved.">
     <div class="slide-header">
       <div class="header-top">
         <span class="badge">LAYER 04 · RELATE (GRAPH CLUSTERING)</span>
@@ -1490,34 +1593,33 @@ body.show-chrome #chrome,
 
     <div class="code-split">
       <div class="code-box scaffold-group">
-        <div class="code-chunk" data-active-step="1"><span class="cm">-- Pass 1: Group linked records using a BigQuery SQL LOOP (70_graph.sql)</span>
-<span class="kw">LOOP</span>
-  <span class="kw">SET</span> step = step + <span class="num">1</span>;
-  <span class="kw">CREATE OR REPLACE TABLE</span> `cdp.graph_labels_next` <span class="kw">AS</span>
-  <span class="kw">SELECT</span> node_id, <span class="fn">LEAST</span>(<span class="fn">MIN</span>(curr.component_id), <span class="fn">MIN</span>(nbr.component_id)) <span class="kw">AS</span> component_id
-  <span class="kw">FROM</span> `cdp.graph_labels` curr <span class="kw">JOIN</span> `cdp.graph_edges` e ...
-  <span class="kw">IF</span> deltas = <span class="num">0</span> <span class="kw">OR</span> step &gt;= max_iters <span class="kw">THEN LEAVE</span>; <span class="kw">END IF</span>;
-<span class="kw">END LOOP</span>;</div>
+        <div class="code-chunk" data-active-step="1"><span class="cm">-- Pass 1: connected components in a stored procedure (70a)</span>
+<span class="kw">WHILE</span> changed &gt; <span class="num">0</span> <span class="kw">AND</span> i &lt; max_iter <span class="kw">DO</span>
+  <span class="kw">SELECT</span> n.node, <span class="fn">LEAST</span>(n.comp, <span class="fn">IFNULL</span>(<span class="fn">MIN</span>(c.comp), n.comp)) <span class="kw">AS</span> comp
+  <span class="kw">FROM</span> labels n
+  <span class="kw">LEFT JOIN</span> edges e <span class="kw">ON</span> e.src = n.node
+  <span class="kw">LEFT JOIN</span> labels c <span class="kw">ON</span> c.node = e.dst ...
+<span class="kw">END WHILE</span>;</div>
 
-        <div class="code-chunk" data-active-step="2"><span class="cm">-- Check clusters for conflicting tax IDs or oversized chains (70c)</span>
-<span class="kw">SELECT</span> component_id, <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> clean_tax_id) <span class="kw">AS</span> distinct_tax_ids
-<span class="kw">FROM</span> `cdp.graph_clusters`
-<span class="kw">GROUP BY</span> component_id <span class="kw">HAVING</span> distinct_tax_ids &gt; <span class="num">1</span> <span class="kw">OR</span> <span class="fn">COUNT</span>(*) &gt; max_cluster_size;</div>
+        <div class="code-chunk" data-active-step="2"><span class="cm">-- Flag clusters that contain more than one person (70c)</span>
+<span class="kw">SELECT</span> comp, <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> dob) <span class="kw">AS</span> distinct_dobs
+<span class="kw">FROM</span> members
+<span class="kw">GROUP BY</span> comp
+<span class="kw">HAVING</span> <span class="fn">COUNT</span>(<span class="kw">DISTINCT</span> dob) &gt; <span class="num">1</span> <span class="kw">OR</span> <span class="cm">/* forename + email + phone clash */</span> ...</div>
 
-        <div class="code-chunk" data-active-step="3"><span class="cm">-- Pass 2: Keep triangle-supported edges; cut weak single bridges (70d)</span>
-triangle_edges <span class="kw">AS</span> (
-  <span class="kw">SELECT DISTINCT</span> e1.id_a, e1.id_b, <span class="kw">TRUE AS</span> has_triangle_support
-  <span class="kw">FROM</span> `cdp.graph_edges` e1
-  <span class="kw">JOIN</span> `cdp.graph_edges` e2 <span class="kw">ON</span> e1.id_a = e2.id_a
-  <span class="kw">JOIN</span> `cdp.graph_edges` e3 <span class="kw">ON</span> e1.id_b = e3.id_b <span class="kw">AND</span> e2.id_b = e3.id_a
-)</div>
+        <div class="code-chunk" data-active-step="3"><span class="cm">-- Pass 2: keep strong or triangle-backed links; cut weak bridges (70d)</span>
+<span class="kw">SELECT</span> record_id_a, record_id_b
+<span class="kw">FROM</span> classified
+<span class="kw">WHERE NOT</span> in_suspect_component
+   <span class="kw">OR</span> strong
+   <span class="kw">OR</span> has_triangle_support</div>
       </div>
 
       <div class="scaffold-group" style="display: flex; flex-direction: column; gap: 14px;">
         <div class="card" data-active-step="1" style="min-height: 138px; padding: 14px 16px;">
           <div>
             <div class="card-tag">PASS 1 · SQL GRAPH LOOP</div>
-            <h3>Group Records in ~3 Loops</h3>
+            <h3>Group Linked Records</h3>
             <p class="card-desc"><strong>No external graph database:</strong> Groups 20,000 records into clusters inside BigQuery.</p>
           </div>
         </div>
@@ -1525,8 +1627,8 @@ triangle_edges <span class="kw">AS</span> (
         <div class="card red-top" data-active-step="2" style="min-height: 138px; padding: 14px 16px;">
           <div>
             <div class="card-tag">STEP 2 · CONFLICT CHECK</div>
-            <h3>Spot Conflicting Tax IDs</h3>
-            <p class="card-desc"><strong>Automatic safety check:</strong> Flags any cluster where two records have different national IDs.</p>
+            <h3>Spot Mixed-Up Clusters</h3>
+            <p class="card-desc"><strong>Automatic safety check:</strong> Flags any cluster holding two different birth dates.</p>
           </div>
         </div>
 
@@ -1541,13 +1643,149 @@ triangle_edges <span class="kw">AS</span> (
     </div>
   </div>
 
+
+  <!-- =====================================================================
+       NEW: 3-METHOD BENCHMARK (Table Spotlight + 3 Callouts)
+       ===================================================================== -->
+  <div class="s" data-idx="11a" data-steps="3" data-sql-stage="95_scorecard"
+       data-notes="<strong>Step 0:</strong> Stage 95 runs three resolution methods over the same 20,000 records and scores each one against hidden ground truth (8,000 real people). The numbers come straight from v_method_comparison."
+       data-notes-1="<strong>Step 1 (Naive graph):</strong> Linking on any shared identifier finds 43% of true pairs, but one hub chains 5,195 people together. Precision is 0.06%."
+       data-notes-2="<strong>Step 2 (Rarity weights only):</strong> Dropping hubs and requiring rare shared identifiers removes the giant cluster: 95.9% precision. But it still merges households sharing a landline or email (100 false merges) and people linked by recycled identifiers (38)."
+       data-notes-3="<strong>Step 3 (Composable CDP):</strong> Adding 2-hop conflict checks, hybrid search, Gemini on the grey zone and the Stage 70 contradiction check gives 99.2% precision, 74 false merges in total, and the best recall of the three (46.8%). Household false merges fall from 100 to 2, and recycled-identifier merges from 38 to 2. Recall is still the weak spot: more than half of true pairs are missed, by design, because a false merge is a privacy incident and a missed match is a duplicate mailing.">
+    <div class="slide-header">
+      <div class="header-top">
+        <span class="badge">MEASURED · 3-METHOD BENCHMARK</span>
+        <div class="header-actions">
+          <button class="sql-pill" onclick="openSqlModal('95_scorecard')">&lt;/&gt; View 95_scorecard.sql</button>
+          <a class="explorer-pill" href="demo/explorer/index.html#95_scorecard" target="_blank">View Live Scorecard ↗</a>
+        </div>
+      </div>
+      <h2>Each layer removes a different kind of false merge</h2>
+    </div>
+
+    <div class="slide-body">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>How It Links Records</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>False Merges</th>
+            <th>Giant Clusters</th>
+          </tr>
+        </thead>
+        <tbody class="table-spotlight-group">
+          <tr data-active-step="1">
+            <td><strong>Naive graph</strong></td>
+            <td>Any shared identifier</td>
+            <td><code>0.06%</code></td>
+            <td><code>42.95%</code></td>
+            <td><code>13,488,214</code></td>
+            <td><code>1</code> (5,195 people)</td>
+          </tr>
+          <tr data-active-step="2">
+            <td><strong>Rarity weights only</strong></td>
+            <td>Rare shared IDs; hubs dropped</td>
+            <td><code>95.93%</code></td>
+            <td><code>40.30%</code></td>
+            <td><code>321</code></td>
+            <td><code>0</code></td>
+          </tr>
+          <tr data-active-step="3">
+            <td><strong>Composable CDP</strong></td>
+            <td>Graph features + search + Gemini + conflict check</td>
+            <td><code>99.16%</code></td>
+            <td><code>46.77%</code></td>
+            <td><code>74</code></td>
+            <td><code>0</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout-strip-3 scaffold-group">
+        <div class="callout-card" data-build="1" data-active-step="1">
+          <strong>Naive graph:</strong> One shared hub links 5,195 strangers.
+        </div>
+        <div class="callout-card" data-build="2" data-active-step="2">
+          <strong>Rarity alone:</strong> Still merges 100 household pairs and 38 recycled-ID pairs.
+        </div>
+        <div class="callout-card" data-build="3" data-active-step="3">
+          <strong>Full pipeline:</strong> Household merges 100 → 2; recycled-ID merges 38 → 2.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       NEW: BEST OF BREED (3 Cards + 3 Aligned Callouts)
+       ===================================================================== -->
+  <div class="s" data-idx="11b" data-steps="3" data-sql-stage="50_candidates"
+       data-notes="<strong>Step 0:</strong> No single technique is enough. Graph features, hybrid search and Gemini each cover a gap the other two leave open."
+       data-notes-1="<strong>Step 1 (Graph features):</strong> Rarity weights and 2-hop conflict checks stop hubs, households and recycled phones from merging people. But a graph method can only score records that already share an identifier."
+       data-notes-2="<strong>Step 2 (Hybrid search):</strong> Vector search catches misspelled and transliterated names that share no exact identifier, and keyword search locks onto exact phones, postcodes and accounts. Together they find 94.3% of true pairs; keyword-only would find 81.3% and vector-only 71.4%."
+       data-notes-3="<strong>Step 3 (Gemini judge):</strong> Gemini reads both records, the graph features and any call or ticket notes, then gives a verdict with a one-sentence reason. Running it on all 10.8 million candidate pairs would be impractical. Running it on the 41,769 grey-zone pairs costs $131.59 per full rebuild of the test data.">
+    <div class="slide-header">
+      <div class="header-top">
+        <span class="badge">BEST OF BREED</span>
+        <div class="header-actions">
+          <a class="explorer-pill" href="demo/explorer/index.html#50_candidates" target="_blank">Open Stage 50 Explorer ↗</a>
+        </div>
+      </div>
+      <h2>Graph features, search, and Gemini each catch what the others miss</h2>
+    </div>
+
+    <div class="slide-body">
+      <div class="grid-3 scaffold-group">
+        <div class="card" data-active-step="1">
+          <div>
+            <div class="card-tag">GRAPH FEATURES</div>
+            <h3>Stop False Merges</h3>
+            <p class="card-desc"><strong>Rarity and 2-hop checks:</strong> Keep hubs, households, and recycled phones apart.</p>
+          </div>
+          <div class="card-metric">0 giant clusters</div>
+        </div>
+
+        <div class="card green-top" data-active-step="2">
+          <div>
+            <div class="card-tag">HYBRID SEARCH</div>
+            <h3>Find Hidden Matches</h3>
+            <p class="card-desc"><strong>Vectors plus keywords:</strong> Catch typos and transliterations that share no exact ID.</p>
+          </div>
+          <div class="card-metric" style="color: var(--secondary);">94.3% found</div>
+        </div>
+
+        <div class="card yellow-top" data-active-step="3">
+          <div>
+            <div class="card-tag">GEMINI JUDGE</div>
+            <h3>Decide the Hard Cases</h3>
+            <p class="card-desc"><strong>Reads both records:</strong> Gives a verdict and a one-sentence reason a steward can check.</p>
+          </div>
+          <div class="card-metric" style="color: var(--accent);">0.39% of pairs</div>
+        </div>
+      </div>
+
+      <div class="callout-strip-3 scaffold-group">
+        <div class="callout-card" data-build="1" data-active-step="1">
+          <strong>Graph alone:</strong> Cannot score records that share no identifier.
+        </div>
+        <div class="callout-card" data-build="2" data-active-step="2">
+          <strong>Search alone:</strong> Keyword-only finds 81.3%; vector-only finds 71.4%.
+        </div>
+        <div class="callout-card" data-build="3" data-active-step="3">
+          <strong>Gemini alone:</strong> 10.8M pairs is too many; 41,769 is practical.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- =====================================================================
        SLIDE 12: GOLDEN RECORD & CHANGE HISTORY (Table Active + 3 Callouts)
        ===================================================================== -->
   <div class="s" data-idx="12" data-steps="3" data-sql-stage="80_survivorship"
        data-notes="<strong>Step 0:</strong> Stage 80 picks the best value for each column to build the Golden Record. Notice all rows stay active while each rule highlights below."
-       data-notes-1="<strong>Step 1 (Pick by Source Trust):</strong> CRM (trust 0.92) wins legal name and email over guest checkout and loyalty nicknames."
-       data-notes-2="<strong>Step 2 (Keep All Losing Values):</strong> We save every losing value and flag was_contested = TRUE in golden_person_lineage."
+       data-notes-1="<strong>Step 1 (Pick by Source Trust):</strong> CRM (trust 9 of 10) wins legal name and email over guest checkout and loyalty nicknames."
+       data-notes-2="<strong>Step 2 (Keep All Losing Values):</strong> We save every losing value and flag was_contested = TRUE in field_survivorship."
        data-notes-3="<strong>Step 3 (Track Change History):</strong> View v_golden_person_attribute_history tracks valid_from and valid_to dates whenever a customer moves.">
     <div class="slide-header">
       <div class="header-top">
@@ -1575,21 +1813,21 @@ triangle_edges <span class="kw">AS</span> (
           <tr data-active-step="1">
             <td><strong>Legal Name</strong></td>
             <td><code>Jonathan Smith</code></td>
-            <td><span class="badge">CRM (0.92)</span></td>
+            <td><span class="badge">CRM (9/10)</span></td>
             <td><strong>Highest source trust:</strong> Beats <code>J. Smith</code> &amp; <code>Jon Smyth</code></td>
             <td><code>was_contested = TRUE</code> (3 values)</td>
           </tr>
           <tr data-active-step="1">
             <td><strong>Primary Email</strong></td>
             <td><code>j.smith@example.com</code></td>
-            <td><span class="badge">CRM (0.92)</span></td>
+            <td><span class="badge">CRM (9/10)</span></td>
             <td><strong>Verified email priority:</strong> Newest timestamp breaks ties</td>
             <td><code>was_contested = TRUE</code> (2 values)</td>
           </tr>
           <tr data-active-step="2">
             <td><strong>Mobile Phone</strong></td>
             <td><code>+61 491 570 156</code></td>
-            <td><span class="badge">LOYALTY (0.80)</span></td>
+            <td><span class="badge">LOYALTY (7/10)</span></td>
             <td><strong>Most recently confirmed:</strong> Valid E.164 mobile number</td>
             <td><code>was_contested = FALSE</code> (agreed)</td>
           </tr>
@@ -1608,7 +1846,7 @@ triangle_edges <span class="kw">AS</span> (
           <strong>1. Trust + recency rules:</strong> SQL window functions pick the most reliable source per column.
         </div>
         <div class="callout-card" data-build="2" data-active-step="2">
-          <strong>2. Nothing thrown away:</strong> Every losing value stays queryable in <code>golden_person_lineage</code>.
+          <strong>2. Nothing thrown away:</strong> Every losing value stays queryable in <code>field_survivorship</code>.
         </div>
         <div class="callout-card" data-build="3" data-active-step="3">
           <strong>3. Full date history:</strong> Query <code>v_golden_person_attribute_history</code> to see past addresses.
@@ -1690,18 +1928,18 @@ triangle_edges <span class="kw">AS</span> (
           <div>
             <div class="card-tag">LIVE OPERATIONS</div>
             <h3>Sub-Second Checkout Lookup</h3>
-            <p class="card-desc"><strong>Instant screen pop:</strong> Call <code>cdp.tf_lookup_hybrid(probe, 5)</code> in SQL or serve profiles from Bigtable in &lt;8ms.</p>
+            <p class="card-desc"><strong>Instant screen pop:</strong> Call <code>cdp.tf_lookup_hybrid(probe, 5)</code> in SQL, or serve profiles from Bigtable.</p>
           </div>
           <div class="card-footer">Scenario E: Real-Time Lookup TVF</div>
         </div>
 
         <div class="card green-top" data-active-step="2">
           <div>
-            <div class="card-tag">PAID MEDIA</div>
-            <h3>Stop Wasting Ad Spend</h3>
-            <p class="card-desc"><strong>Accurate buyer suppression:</strong> Sync golden profiles to Google Ads Customer Match and DV360.</p>
+            <div class="card-tag">MARKETING</div>
+            <h3>Stop Paying Twice</h3>
+            <p class="card-desc"><strong>One contact per person:</strong> Suppress recent buyers in Google Ads and send one catalogue per household.</p>
           </div>
-          <div class="card-footer" style="color: var(--secondary);">Cut 12–18% duplicate ad spend</div>
+          <div class="card-footer" style="color: var(--secondary);">Measured: 12.85% fewer mailings</div>
         </div>
 
         <div class="card yellow-top" data-active-step="3">
@@ -1710,16 +1948,16 @@ triangle_edges <span class="kw">AS</span> (
             <h3>Clean Customer 360 Views</h3>
             <p class="card-desc"><strong>True Lifetime Value:</strong> Power Looker dashboards and Vertex AI churn models on unified purchase history.</p>
           </div>
-          <div class="card-footer">cdp.v_customer_360</div>
+          <div class="card-footer">cdp.golden_person</div>
         </div>
       </div>
 
       <div class="callout-strip-3 scaffold-group">
         <div class="callout-card" data-build="1" data-active-step="1">
-          <strong>Try it in the notebook:</strong> Section 9 of <code>demo/notebook.ipynb</code> runs live hybrid checkout lookups.
+          <strong>Try it now:</strong> <code>scenarios/run_scenario.sh E</code> runs live hybrid checkout lookups.
         </div>
         <div class="callout-card" data-build="2" data-active-step="2">
-          <strong>Immediate media savings:</strong> Stop retargeting customers who already bought under a nickname.
+          <strong>Household mail:</strong> 111 duplicate catalogues avoided across 753 households in the test.
         </div>
         <div class="callout-card" data-build="3" data-active-step="3">
           <strong>One source of truth:</strong> Support, marketing, and finance all report the exact same customer counts.
@@ -1734,7 +1972,7 @@ triangle_edges <span class="kw">AS</span> (
   <div class="s" data-idx="15" data-steps="3" data-sql-stage="85_consent"
        data-notes="<strong>Step 0:</strong> Merging records without strict privacy rules can accidentally override a customer's marketing opt-out."
        data-notes-1="<strong>Step 1 (Opt-Out Always Wins):</strong> In 85_consent.sql, if any merged record opted out of email or SMS, the golden profile blocks that channel."
-       data-notes-2="<strong>Step 2 (Column Masking):</strong> Knowledge Catalog policy tags automatically hide raw tax IDs and birth dates from unauthorized analysts."
+       data-notes-2="<strong>Step 2 (Column Masking):</strong> Knowledge Catalog policy tags hide raw birth dates and phone numbers from unauthorized analysts."
        data-notes-3="<strong>Step 3 (Isolated Test Truth):</strong> Stage 05 verifies that pipeline SQL never reads the ground-truth evaluation dataset (cdp_truth).">
     <div class="slide-header">
       <div class="header-top">
@@ -1762,7 +2000,7 @@ triangle_edges <span class="kw">AS</span> (
           <div>
             <div class="card-tag">ACCESS CONTROL</div>
             <h3>Automatic PII Masking</h3>
-            <p class="card-desc"><strong>Role-based hiding:</strong> Analysts query <code>person_id</code> while Knowledge Catalog policy tags mask raw tax IDs and birth dates.</p>
+            <p class="card-desc"><strong>Role-based hiding:</strong> Analysts query <code>person_id</code> while Knowledge Catalog policy tags mask birth dates and phone numbers.</p>
           </div>
           <div class="card-footer">Knowledge Catalog Policy Tags</div>
         </div>
@@ -1785,7 +2023,7 @@ triangle_edges <span class="kw">AS</span> (
           <strong>Easy deletion requests:</strong> Deleting a customer cascades cleanly across one BigQuery dataset.
         </div>
         <div class="callout-card" data-build="3" data-active-step="3">
-          <strong>Honest F1 numbers:</strong> Every scorecard metric is measured against quarantined ground truth.
+          <strong>Honest numbers:</strong> Every scorecard metric is measured against quarantined ground truth.
         </div>
       </div>
     </div>
@@ -1795,9 +2033,9 @@ triangle_edges <span class="kw">AS</span> (
        SLIDE 16: PROOF & 8-WEEK PILOT (3 Cards + 3 Aligned Callouts)
        ===================================================================== -->
   <div class="s" data-idx="16" data-steps="3" data-sql-stage="95_scorecard"
-       data-notes="<strong>Step 0:</strong> You can test this entire pipeline today on 20,000 synthetic records or prove it on your own data in 8 weeks."
+       data-notes="<strong>Step 0:</strong> You can test this entire pipeline today on 20,000 synthetic records or prove it on your own data in 8 weeks. Be clear about where it stands: precision is 99.2%, but recall is 46.8%, so more than half of true pairs are still missed. That is a deliberate bias toward under-merging. Only 2 of the 15 planted hard-case types pass outright, and 4 false merges remain in the hard cases (2 where a caller rings about a partner's account, 2 on people who should never be merged). The pilot is where we tune that on your data."
        data-notes-1="<strong>Step 1 (Weeks 1-3 Baseline):</strong> Load 2-3 source tables into BigQuery and measure your current exact-match baseline."
-       data-notes-2="<strong>Step 2 (Weeks 4-6 Hybrid + Gemini Pilot):</strong> Turn on vector search, rarity weights, and Gemini 3.5 Flash adjudication."
+       data-notes-2="<strong>Step 2 (Weeks 4-6 Hybrid + Gemini Pilot):</strong> Turn on graph rarity, vector search, and Gemini 3.5 Flash adjudication, then raise recall without losing precision."
        data-notes-3="<strong>Step 3 (Weeks 7-8 Production):</strong> Wire live lookup and ad suppression, and use --replay-ai for 15-second iterative testing.">
     <div class="slide-header">
       <div class="header-top">
@@ -1827,7 +2065,7 @@ triangle_edges <span class="kw">AS</span> (
             <h3>Hybrid + Gemini 3.5 Pilot</h3>
             <p class="card-desc"><strong>Run stages 30 to 70:</strong> Turn on vector search, rarity weights, and Gemini 3.5 Flash on the grey zone.</p>
           </div>
-          <div class="card-footer" style="color: var(--primary);">Target: &gt;96% Pairwise F1</div>
+          <div class="card-footer" style="color: var(--primary);">Today: 99.2% precision · 46.8% recall</div>
         </div>
 
         <div class="card green-top" data-active-step="3">
@@ -1836,7 +2074,7 @@ triangle_edges <span class="kw">AS</span> (
             <h3>Go Live &amp; Activate</h3>
             <p class="card-desc"><strong>Connect downstream tools:</strong> Turn on history views, Bigtable lookup, and Google Ads suppression.</p>
           </div>
-          <div class="card-footer" style="color: var(--secondary);">15M Records: ~$142 AI Cost</div>
+          <div class="card-footer" style="color: var(--secondary);">Measured: $6.58 AI cost per 1,000 records</div>
         </div>
       </div>
 
@@ -1869,7 +2107,7 @@ triangle_edges <span class="kw">AS</span> (
       <button class="nav-btn" onclick="show(0, 0)" title="Home (First Slide)">⌂ Home</button>
       <button class="nav-btn" onclick="prev()" title="Previous Step / Slide (Left Arrow)">← Prev</button>
       <button class="nav-btn" onclick="next()" title="Next Step / Slide (Right Arrow / Space)">Next →</button>
-      <div class="counter" id="ctr">1 / 17</div>
+      <div class="counter" id="ctr">1 / 21</div>
       <div class="step-dots" id="step-dots"></div>
     </div>
 

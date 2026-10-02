@@ -15,7 +15,7 @@ committed anywhere in this repository — `setup.sh` asks.
 | :-- | :--- | :--- |
 | 1 | Unstructured sources need no ETL | `20_normalise.sql` — `AI.GENERATE` reads call transcripts from an object table and ticket bodies from Parquet, in place |
 | 2 | Embeddings maintain themselves | `30_embed.sql` & `35_embed_finalise.sql` — `AI.EMBED` over `match_key` + `VECTOR INDEX` and `SEARCH INDEX` |
-| 3 | Bipartite graph rarity & 2-hop SQL features replace PyTorch GNNs | `40_block.sql` (§40e–40h) & `50_candidates.sql` — closed-form `idf_weight = LN(1 + N / degree)` + 2-hop divergence (`unshared_*_both`) |
+| 3 | Bipartite graph rarity & 2-hop SQL features replace PyTorch GNNs | `40_block.sql` (§40e–40h) & `50_candidates.sql` — closed-form `idf_weight = LN(N / degree)` + 2-hop divergence (`unshared_*_both`) |
 | 4 | Neither search leg is sufficient alone | `v_retrieval_legs` & `v_retrieval_recall` — what a semantic-only and a lexical-only architecture would each have missed, against truth |
 | 5 | The LLM only sees the hard cases — and that is still where the money goes | `v_scorecard.pct_of_pairs_using_an_llm` (`0.39%` of candidate pairs reach the adjudicator); `v_cost_model` prices one clean rebuild at `$131.59` (`$6.58` per 1k records), estimated from a 300-call measured token sample — see Cost |
 | 6 | Transitive closure must be distrusted | `70_graph.sql` — Pass-2 Contradiction Guard severs initial-bridge sibling collisions (`suppressed_by_contradiction = TRUE`) |

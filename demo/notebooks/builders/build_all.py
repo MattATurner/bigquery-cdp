@@ -221,7 +221,7 @@ def build_nb01() -> dict:
 This notebook is the **15-minute guided tour** of the **Composable Customer Data Platform (CDP)** built 100% natively in **BigQuery**.
 
 It combines two complementary breakthroughs inside a single SQL-native warehouse pipeline:
-1. **Bipartite Identifier Graph Rarity & 2-Hop Neighbourhood Features (`40_block.sql` + `50_candidates.sql`)** — replacing fragile external PyTorch/GraphSAGE training pipelines with closed-form Inverse Document Frequency (`LN(1 + N / degree)`) and explicit 2-hop neighbourhood comparisons (`unshared_email_both`, `unshared_phone_both`, `street_conflict`).
+1. **Bipartite Identifier Graph Rarity & 2-Hop Neighbourhood Features (`40_block.sql` + `50_candidates.sql`)** — replacing fragile external PyTorch/GraphSAGE training pipelines with closed-form Inverse Document Frequency (`LN(N / degree)`) and explicit 2-hop neighbourhood comparisons (`unshared_email_both`, `unshared_phone_both`, `street_conflict`).
 2. **Hybrid Vector + Lexical Search (`AI.SEARCH` / `VECTOR_SEARCH` + Reciprocal Rank Fusion) + Gemini 3.5 Flash Adjudication (`AI.GENERATE`) + Pass-2 Contradiction Pruning (`60_adjudicate.sql` + `70_graph.sql`)** — catching fuzzy semantic matches (transliterations, nicknames, unstructured call transcripts) while keeping false merges to **4 across the planted hard cases** (`99.16%` corpus-wide pairwise precision).
 
 ### The 5-Act Notebook Suite
@@ -644,7 +644,7 @@ In retail, loyalty, and contact-centre data, **not all shared identifiers mean t
 - **Shared Household Identifiers (`degree 2..5`):** Family email addresses (`EM:thegills@gmail.com`) and home landlines are legitimately shared by **2 to 4 distinct family members** living at the same address.
 - **Temporal Identifier Supersession (`has_identifier_history`):** Mobile numbers and emails are recycled or updated over time (`valid_from`, `valid_to`, `is_current`).
 
-In Stage 40 (`40_block.sql`, sections `40e`–`40h`), we construct a **Bipartite Profile $\leftrightarrow$ Identifier Graph** directly in BigQuery SQL and compute each identifier's **Inverse Document Frequency (`idf_weight = LN(1 + N / degree)`)**.""",
+In Stage 40 (`40_block.sql`, sections `40e`–`40h`), we construct a **Bipartite Profile $\leftrightarrow$ Identifier Graph** directly in BigQuery SQL and compute each identifier's **Inverse Document Frequency (`idf_weight = LN(N / degree)`)**.""",
         ),
         code_cell("nb02-setup", COMMON_SETUP_CODE, stdout=COMMON_SETUP_STDOUT, execution_count=1),
         md_cell(
@@ -1710,7 +1710,7 @@ Every notebook in this directory is **pre-executed against `all-things-cdp.cdp`*
 | Notebook | Act | What It Proves |
 |---|---|---|
 | [`01_identity_resolution_story.ipynb`](01_identity_resolution_story.ipynb) | **Executive Story** | 15-minute end-to-end narrative: 3-method benchmark (`baseline_cc` vs `weighted_cc` vs `composable_cdp`) + following **one customer (`Abby Noland`, `PER-1cdfdb9f52ddb25a`)** from 5 raw records to 1 golden person. |
-| [`02_graph_pathology_and_rarity.ipynb`](02_graph_pathology_and_rarity.ipynb) | **Act 1 · Graph Pathology & Rarity** | How 7 promiscuous store-kiosk/call-centre hubs (`degree = 419..575`) collapse 5,195 profiles into a single hairball (`0.06%` precision), and how Bipartite Identifier Graph IDF Rarity (`LN(1 + N / degree)`) breaks the hairball in pure SQL. |
+| [`02_graph_pathology_and_rarity.ipynb`](02_graph_pathology_and_rarity.ipynb) | **Act 1 · Graph Pathology & Rarity** | How 7 promiscuous store-kiosk/call-centre hubs (`degree = 419..575`) collapse 5,195 profiles into a single hairball (`0.06%` precision), and how Bipartite Identifier Graph IDF Rarity (`LN(N / degree)`) breaks the hairball in pure SQL. |
 | [`03_hybrid_search_and_2hop_features.ipynb`](03_hybrid_search_and_2hop_features.ipynb) | **Act 2 · Hybrid Search + 2-Hop Features** | Why closed-form 1-hop/2-hop SQL graph features (`idf_weight_sum`, `unshared_email_both`, `unshared_phone_both`) + BigQuery Hybrid Search (`AI.SEARCH` / `VECTOR_SEARCH` + RRF) outperform standalone PyTorch GraphSAGE link predictors without GPU training pipelines. |
 | [`04_llm_adjudicator_and_contradiction_guard.ipynb`](04_llm_adjudicator_and_contradiction_guard.ipynb) | **Act 3 · Gemini Adjudication & Contradiction Guard** | How Gemini 3.5 Flash adjudicates the `0.39%` grey-zone pairs, blocks adversarial prompt injection, and works with Stage 70's **Pass-2 Transitive Contradiction Guard** to hold false merges to **`4`** in the planted hard-case set (only 2 of the 15 types pass outright). |
 | [`05_semantic_graph_governance_and_roi.ipynb`](05_semantic_graph_governance_and_roi.ipynb) | **Act 4 & 5 · Semantic Graph, Consent & ROI** | Fan-out-free multi-hop aggregation via `FROM GRAPH_EXPAND("cdp.cdp_semantic_graph")` + `AGG()`, Australian Privacy Act 1988 Intersection Consent, `3x` attributed spend lift, `12.85%` direct-mail household waste reduction, and the cost model (`$6.58` of model spend per 1,000 records per rebuild). |

@@ -22,7 +22,7 @@ The keystone of this design is **Master Data Management (Customer)** implemented
 | P5 | **Non-destructive by default** | Source records are never overwritten. The golden record is a materialised *view of a decision*, and unmerge is a first-class operation. |
 | P6 | **Under-merge over over-merge** | Wrongly linking two people is a privacy incident. Thresholds and the Pass-2 Contradiction Guard bias conservative (`99.16%` pairwise precision with every grey-zone pair judged; only 2 of the 15 planted hard-case types pass outright, and 4 false merges remain — 2 in `UNSTRUCTURED_ONLY`, 2 on `SINGLETON` controls — so the rest lose mostly recall, not precision). |
 | P7 | **Consent never travels across a merge** | Consent is bound to the source record and re-evaluated at profile level via the Intersection Rule (Australian Privacy Act 1988). |
-| P8 | **Closed-form SQL 2-hop graph features over black-box GNN pipelines** | Bipartite identifier IDF rarity (`LN(1 + N / degree)`) and 2-hop neighbourhood divergence (`unshared_email_both`, `unshared_phone_both`) compute the exact sufficient statistics of a 2-layer GraphSAGE link predictor in pure SQL with zero GPU training or embedding staleness. |
+| P8 | **Closed-form SQL 2-hop graph features over black-box GNN pipelines** | Bipartite identifier IDF rarity (`LN(N / degree)`) and 2-hop neighbourhood divergence (`unshared_email_both`, `unshared_phone_both`) compute the exact sufficient statistics of a 2-layer GraphSAGE link predictor in pure SQL with zero GPU training or embedding staleness. |
 
 ---
 
@@ -174,7 +174,7 @@ Extend the vector index with the lexical columns so the keyword leg is indexed r
 
 ### 3.5 Bipartite Identifier Graph Rarity, 2-Hop Features & Tiered Decisioning
 
-Before scoring pairs, Stage 40 (`40_block.sql` §40e–40h) builds a **Bipartite Profile $\leftrightarrow$ Identifier Graph** (`has_identifier`, `has_identifier_history`, `identifier`, `profile_projection`) and computes each identifier's **Inverse Document Frequency (`idf_weight = LN(1 + N / degree)`)** and promiscuity flag (`is_promiscuous = degree > 25`).
+Before scoring pairs, Stage 40 (`40_block.sql` §40e–40h) builds a **Bipartite Profile $\leftrightarrow$ Identifier Graph** (`has_identifier`, `has_identifier_history`, `identifier`, `profile_projection`) and computes each identifier's **Inverse Document Frequency (`idf_weight = LN(N / degree)`)** and promiscuity flag (`is_promiscuous = degree > 25`).
 
 Stage 50 (`50_candidates.sql`) enriches each candidate pair with:
 1. **1-Hop Shared Identifier Rarity:** `idf_weight_sum`, `min_shared_degree`, `via_hub`, `hub_only`.

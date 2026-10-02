@@ -238,7 +238,7 @@ Always follow these rules:
    - `identifier_report(identifier_id)`
    - `resolution_runs()`
 2. Explain clearly how Composable CDP combines:
-   - 1-hop Bipartite Identifier Graph Rarity (`idf_weight = LN(1 + N / degree)`, `is_promiscuous` for degree > 25)
+   - 1-hop Bipartite Identifier Graph Rarity (`idf_weight = LN(N / degree)`, `is_promiscuous` for degree > 25)
    - 2-hop Neighbourhood Features (`unshared_email_both`, `unshared_phone_both`, `forename_conflict`)
    - Hybrid Search (`AI.SEARCH` / `VECTOR_SEARCH` + Reciprocal Rank Fusion)
    - Gemini 3.5 Flash grey-zone adjudication (`AI.GENERATE`)
