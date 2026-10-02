@@ -277,8 +277,20 @@ SELECT
   -- See the note on the ledger schema. Nullable: a model version that does
   -- not report usageMetadata leaves these null and stage 96 falls back to
   -- an estimate rather than failing.
-  SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.promptTokenCount')     AS INT64) AS input_tokens,
-  SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.candidatesTokenCount') AS INT64) AS output_tokens
+  -- BigQuery returns usage_metadata in snake_case; the camelCase path is kept
+  -- as a fallback for older response shapes. Thinking tokens are billed as
+  -- output, so they are added to output_tokens when the model reports them.
+  COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.prompt_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.promptTokenCount')    AS INT64)
+  ) AS input_tokens,
+  COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.candidates_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.candidatesTokenCount')    AS INT64)
+  ) + IFNULL(COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.thoughts_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.thoughtsTokenCount')    AS INT64)
+  ), 0) AS output_tokens
 FROM prompted;
 
 

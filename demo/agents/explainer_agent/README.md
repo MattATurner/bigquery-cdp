@@ -22,7 +22,7 @@ An interactive **Google Agent Development Kit (ADK)** agent (`cdp_explainer`) eq
 | Tool | Purpose |
 |---|---|
 | `lookup_profile(record_id)` | Inspects a source record, its attached identifiers & IDF rarity weights (`cdp.identifier`), and its resolved person ID across `baseline_cc`, `weighted_cc`, and `composable_cdp`. |
-| `explain_link(record_id_a, record_id_b)` | Returns the 1-hop/2-hop graph features (`idf_weight_sum`, `unshared_email_both`, `forename_conflict`), RRF hybrid search ranks, Gemini 2.5 Flash rationale, and Pass-2 Contradiction Pruning status. |
+| `explain_link(record_id_a, record_id_b)` | Returns the 1-hop/2-hop graph features (`idf_weight_sum`, `unshared_email_both`, `forename_conflict`), RRF hybrid search ranks, Gemini 3.5 Flash rationale, and Pass-2 Contradiction Pruning status. |
 | `explain_component(person_id)` | Explains a resolved Golden Person (`cdp.golden_person`), all member source records, contested field survivorship (`cdp.field_survivorship`), and Australian Privacy Act 1988 Intersection Consent (`cdp.person_consent`). |
 | `identifier_report(identifier_id)` | Audits a Bipartite Identifier Graph node (`degree`, `idf_weight`, `is_promiscuous`) and lists current vs historical superseded records (`cdp.has_identifier_history`). |
 | `resolution_runs()` | Returns the side-by-side 3-method benchmark (`cdp.resolution_runs` and `cdp.v_method_comparison`). |

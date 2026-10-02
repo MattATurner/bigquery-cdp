@@ -1,13 +1,14 @@
-# Dependencies for demo/notebook.ipynb — the single-customer walkthrough.
+# Dependencies for demo/notebooks/ — the 5-Act notebook suite.
 #
-# The notebook uses native %%bigquery cell magics rather than shelling out to
-# the bq CLI, so it needs the BigQuery python client and the magics package.
+# The notebooks use native %%bigquery cell magics rather than shelling out to
+# the bq CLI, so they need the BigQuery python client and the magics package.
 #
 #   uv venv demo/.venv-nb
 #   uv pip install --python demo/.venv-nb/bin/python -r demo/requirements-notebook.txt
 #
-# Then point Jupyter at demo/.venv-nb, or run it headless:
-#   .venv-nb/bin/python -m nbconvert --to notebook --execute notebook.ipynb
+# Then point Jupyter at demo/.venv-nb, or refresh every notebook's outputs
+# from live BigQuery headless:
+#   .venv-nb/bin/python notebooks/builders/refresh_outputs.py
 #
 # Auth is Application Default Credentials. If the python client cannot
 # authenticate:  gcloud auth application-default login

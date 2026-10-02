@@ -147,8 +147,14 @@ steward AS (
   FROM `${CDP_PROJECT}.${CDP_DS}.match_decisions`
 ),
 llm AS (
+  -- Scoped to THIS run's grey zone. The adjudication ledger is append-only
+  -- and keeps verdicts for pairs that earlier tiering runs sent to the model,
+  -- so counting the whole ledger overstates how much this run relied on AI.
   SELECT COUNT(*) AS adjudicated
-  FROM `${CDP_PROJECT}.${CDP_DS}.v_adjudications_current`
+  FROM `${CDP_PROJECT}.${CDP_DS}.v_adjudications_current` AS v
+  JOIN `${CDP_PROJECT}.${CDP_DS}.pair_tiers` AS t
+    ON t.record_id_a = v.record_id_a AND t.record_id_b = v.record_id_b
+  WHERE t.tier = 'GREY_ZONE'
 ),
 candidates AS (
   SELECT COUNT(*) AS evaluated FROM `${CDP_PROJECT}.${CDP_DS}.pair_tiers`

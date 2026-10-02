@@ -110,16 +110,37 @@ embedding AS (
 
 -- Adjudication. Measured, and scoped to the model and prompt currently in
 -- force so a re-run under a new prompt does not double-count history.
+--
+-- Calls whose token usage was not captured (ledger rows written before the
+-- usage_metadata parsing fix) are costed at the MEASURED per-call average of
+-- the same model and prompt -- including a '<prompt>-calibration' sample
+-- re-judged purely to measure tokens, which never counts as a verdict. They
+-- stay counted in unmeasured_calls, so basis reads PARTIAL or ESTIMATED.
+adj_calibration AS (
+  SELECT
+    AVG(input_tokens)  AS avg_in,
+    AVG(output_tokens) AS avg_out
+  FROM `${CDP_PROJECT}.${CDP_DS}.adjudications`
+  WHERE model = '${CDP_ADJUDICATOR_MODEL}'
+    AND prompt_version IN ('${CDP_PROMPT_VERSION}', '${CDP_PROMPT_VERSION}-calibration')
+    AND input_tokens IS NOT NULL
+),
+-- Scoped to ONE call per pair in the current grey zone -- i.e. what a clean
+-- rebuild costs. The ledger is append-only, so it also holds retries and
+-- pairs judged under earlier tier thresholds; that cumulative spend is
+-- reported separately as usd_adjudication_ledger_to_date in v_cost_model.
 adjudication AS (
   SELECT
     'adjudication'                         AS component,
     COUNT(*)                               AS calls,
-    SUM(IFNULL(input_tokens, 0))           AS input_tokens,
-    SUM(IFNULL(output_tokens, 0))          AS output_tokens,
-    COUNTIF(input_tokens IS NULL)          AS unmeasured_calls
-  FROM `${CDP_PROJECT}.${CDP_DS}.adjudications`
-  WHERE model          = '${CDP_ADJUDICATOR_MODEL}'
-    AND prompt_version = '${CDP_PROMPT_VERSION}'
+    CAST(SUM(IFNULL(a.input_tokens,  c.avg_in))  AS INT64) AS input_tokens,
+    CAST(SUM(IFNULL(a.output_tokens, c.avg_out)) AS INT64) AS output_tokens,
+    COUNTIF(a.input_tokens IS NULL)        AS unmeasured_calls
+  FROM `${CDP_PROJECT}.${CDP_DS}.pair_tiers` AS t
+  JOIN `${CDP_PROJECT}.${CDP_DS}.v_adjudications_current` AS a
+    USING (record_id_a, record_id_b)
+  CROSS JOIN adj_calibration AS c
+  WHERE t.tier = 'GREY_ZONE'
 ),
 
 all_components AS (
@@ -230,6 +251,27 @@ corpus AS (
 people AS (
   SELECT COUNT(*) AS people FROM `${CDP_PROJECT}.${CDP_DS}.golden_person`
 ),
+-- Everything the adjudicator has been paid for under this model and prompt,
+-- including retries, earlier-threshold grey zones and the calibration
+-- sample. This is money already spent, NOT the cost of one rebuild.
+ledger AS (
+  SELECT
+    COUNT(*) AS ledger_calls,
+    SUM(  IFNULL(a.input_tokens,  c.avg_in)  / 1e6 * p.usd_per_1m_adjudicate_input
+        + IFNULL(a.output_tokens, c.avg_out) / 1e6 * p.usd_per_1m_adjudicate_output)
+      AS usd_ledger
+  FROM `${CDP_PROJECT}.${CDP_DS}.adjudications` AS a
+  CROSS JOIN (
+    SELECT AVG(input_tokens) AS avg_in, AVG(output_tokens) AS avg_out
+    FROM `${CDP_PROJECT}.${CDP_DS}.adjudications`
+    WHERE model = '${CDP_ADJUDICATOR_MODEL}'
+      AND prompt_version IN ('${CDP_PROMPT_VERSION}', '${CDP_PROMPT_VERSION}-calibration')
+      AND input_tokens IS NOT NULL
+  ) AS c
+  CROSS JOIN `${CDP_PROJECT}.${CDP_DS}.ref_unit_prices` AS p
+  WHERE a.model = '${CDP_ADJUDICATOR_MODEL}'
+    AND a.prompt_version IN ('${CDP_PROMPT_VERSION}', '${CDP_PROMPT_VERSION}-calibration')
+),
 target AS (
   SELECT
     CAST('${CDP_TARGET_RECORDS}'     AS INT64)   AS target_records,
@@ -260,16 +302,24 @@ SELECT
   ROUND(t.usd_model_total / NULLIF(c.records, 0) * tg.target_records
         * tg.rebuilds_per_month, 2)                  AS usd_model_at_target_per_month,
 
+  -- Money already spent on adjudication across iterations (not per rebuild)
+  l.ledger_calls                                     AS adjudication_ledger_calls,
+  ROUND(l.usd_ledger, 2)                             AS usd_adjudication_ledger_to_date,
+
   -- Honesty
   t.components_estimated,
   CASE
     WHEN t.components_estimated = 0 THEN 'All components measured from reported token counts.'
     ELSE FORMAT(
       '%d of 5 components estimated rather than measured (AI.EMBED and AI.CLASSIFY '
-      || 'do not report usage metadata). See cost_components.basis.',
+      || 'do not report usage metadata; adjudication rows written before token capture '
+      || 'are costed at the measured per-call average of a calibration sample). '
+      || 'See cost_components.basis.',
       t.components_estimated)
   END                                                AS measurement_note,
   'EXCLUDES BigQuery compute — see v_cost_compute and add it. '
+  || 'Per-rebuild figures assume ONE adjudication call per current grey-zone pair; '
+  || 'usd_adjudication_ledger_to_date is the cumulative spend including re-runs. '
   || 'Extrapolation is LINEAR in record count; adjudication volume is the '
   || 'component most likely to grow faster than linearly, because blocking '
   || 'discriminates less well as the corpus densifies. Treat the target figure '
@@ -277,6 +327,7 @@ SELECT
 FROM totals AS t
 CROSS JOIN corpus AS c
 CROSS JOIN people AS pe
+CROSS JOIN ledger AS l
 CROSS JOIN target AS tg;
 
 
@@ -301,9 +352,8 @@ WITH base AS (
      FROM `${CDP_PROJECT}.${CDP_DS}.cost_components`)               AS usd_adjudication,
     (SELECT SUM(IF(component <> 'adjudication', usd_model_cost, 0))
      FROM `${CDP_PROJECT}.${CDP_DS}.cost_components`)               AS usd_fixed,
-    (SELECT COUNT(*) FROM `${CDP_PROJECT}.${CDP_DS}.adjudications`
-      WHERE model = '${CDP_ADJUDICATOR_MODEL}'
-        AND prompt_version = '${CDP_PROMPT_VERSION}')               AS pairs_judged,
+    (SELECT calls FROM `${CDP_PROJECT}.${CDP_DS}.cost_components`
+      WHERE component = 'adjudication')                            AS pairs_judged,
     CAST('${CDP_TARGET_RECORDS}' AS INT64)                          AS target_records
 ),
 multipliers AS (

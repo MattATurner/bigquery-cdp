@@ -1,0 +1,1708 @@
+{
+ "01_identity_resolution_story:df_runs": [
+  {
+   "method": "baseline_cc",
+   "threshold": 0.0,
+   "n_profiles": 20000,
+   "n_components": 11049,
+   "largest_component": 5195,
+   "n_hairballs": 1,
+   "profiles_in_hairballs": 5195
+  },
+  {
+   "method": "weighted_cc",
+   "threshold": 7.0,
+   "n_profiles": 20000,
+   "n_components": 14091,
+   "largest_component": 5,
+   "n_hairballs": 0,
+   "profiles_in_hairballs": 0
+  },
+  {
+   "method": "composable_cdp",
+   "threshold": 0.92,
+   "n_profiles": 20000,
+   "n_components": 13566,
+   "largest_component": 9,
+   "n_hairballs": 0,
+   "profiles_in_hairballs": 0
+  }
+ ],
+ "01_identity_resolution_story:df_method_comp": [
+  {
+   "pathology": "ALL",
+   "method": "baseline_cc",
+   "tp": 8064,
+   "fp": 13488214,
+   "fn": 10712,
+   "precision": 0.0006,
+   "recall": 0.4295,
+   "f1": 0.0012
+  },
+  {
+   "pathology": "ALL",
+   "method": "weighted_cc",
+   "tp": 7566,
+   "fp": 321,
+   "fn": 11210,
+   "precision": 0.9593,
+   "recall": 0.403,
+   "f1": 0.5675
+  },
+  {
+   "pathology": "ALL",
+   "method": "composable_cdp",
+   "tp": 8782,
+   "fp": 74,
+   "fn": 9994,
+   "precision": 0.9916,
+   "recall": 0.4677,
+   "f1": 0.6356
+  },
+  {
+   "pathology": "hub",
+   "method": "baseline_cc",
+   "tp": 2557,
+   "fp": 13488039,
+   "fn": 2883,
+   "precision": 0.0002,
+   "recall": 0.47,
+   "f1": 0.0004
+  },
+  {
+   "pathology": "hub",
+   "method": "weighted_cc",
+   "tp": 2077,
+   "fp": 64,
+   "fn": 3363,
+   "precision": 0.9701,
+   "recall": 0.3818,
+   "f1": 0.5479
+  },
+  {
+   "pathology": "hub",
+   "method": "composable_cdp",
+   "tp": 2404,
+   "fp": 19,
+   "fn": 3036,
+   "precision": 0.9922,
+   "recall": 0.4419,
+   "f1": 0.6115
+  },
+  {
+   "pathology": "household",
+   "method": "baseline_cc",
+   "tp": 151,
+   "fp": 54,
+   "fn": 87,
+   "precision": 0.7366,
+   "recall": 0.6345,
+   "f1": 0.6817
+  },
+  {
+   "pathology": "household",
+   "method": "weighted_cc",
+   "tp": 147,
+   "fp": 100,
+   "fn": 91,
+   "precision": 0.5951,
+   "recall": 0.6176,
+   "f1": 0.6062
+  },
+  {
+   "pathology": "household",
+   "method": "composable_cdp",
+   "tp": 152,
+   "fp": 2,
+   "fn": 86,
+   "precision": 0.987,
+   "recall": 0.6387,
+   "f1": 0.7755
+  },
+  {
+   "pathology": "supersession",
+   "method": "baseline_cc",
+   "tp": 28,
+   "fp": 29,
+   "fn": 62,
+   "precision": 0.4912,
+   "recall": 0.3111,
+   "f1": 0.381
+  },
+  {
+   "pathology": "supersession",
+   "method": "weighted_cc",
+   "tp": 24,
+   "fp": 38,
+   "fn": 66,
+   "precision": 0.3871,
+   "recall": 0.2667,
+   "f1": 0.3158
+  },
+  {
+   "pathology": "supersession",
+   "method": "composable_cdp",
+   "tp": 46,
+   "fp": 2,
+   "fn": 44,
+   "precision": 0.9583,
+   "recall": 0.5111,
+   "f1": 0.6667
+  },
+  {
+   "pathology": "semantic_fuzzy",
+   "method": "baseline_cc",
+   "tp": 307,
+   "fp": 0,
+   "fn": 89,
+   "precision": 1.0,
+   "recall": 0.7753,
+   "f1": 0.8734
+  },
+  {
+   "pathology": "semantic_fuzzy",
+   "method": "weighted_cc",
+   "tp": 305,
+   "fp": 0,
+   "fn": 91,
+   "precision": 1.0,
+   "recall": 0.7702,
+   "f1": 0.8702
+  },
+  {
+   "pathology": "semantic_fuzzy",
+   "method": "composable_cdp",
+   "tp": 294,
+   "fp": 0,
+   "fn": 102,
+   "precision": 1.0,
+   "recall": 0.7424,
+   "f1": 0.8522
+  }
+ ],
+ "01_identity_resolution_story:df_subject": [
+  {
+   "person_id": "PER-1cdfdb9f52ddb25a",
+   "full_name": "Abby Noland",
+   "city": "Gold Coast",
+   "postcode": "4220",
+   "n_records": 5,
+   "n_sources": 5,
+   "sources": "CRM,ENRICH,LOYALTY,POS,SUPPORT",
+   "n_unstructured": 1,
+   "grey_zone_pairs": 2
+  }
+ ],
+ "01_identity_resolution_story:df_records": [
+  {
+   "record_id": "CRM-5d268dd4",
+   "source_system": "CRM",
+   "source_trust": 9,
+   "raw_name": "Abby Noland",
+   "name_norm": "ABBY NOLAND",
+   "raw_email": "anoland@yahoo.com.au",
+   "email_norm": "anoland@yahoo.com.au",
+   "raw_phone": "+61489909604",
+   "phone_e164": "+61489909604",
+   "raw_postcode": "4220",
+   "postcode_norm": "4220",
+   "dob": "1955-07-27",
+   "account_number": null,
+   "identity_strength": 4
+  },
+  {
+   "record_id": "LOY-ac677db5",
+   "source_system": "LOYALTY",
+   "source_trust": 7,
+   "raw_name": "abyb noland",
+   "name_norm": "ABYB NOLAND",
+   "raw_email": null,
+   "email_norm": null,
+   "raw_phone": "0489 909 604",
+   "phone_e164": "+61489909604",
+   "raw_postcode": "42",
+   "postcode_norm": null,
+   "dob": "1955-07-27",
+   "account_number": "ACC-8504064",
+   "identity_strength": 3
+  },
+  {
+   "record_id": "SUP-da73f0e1",
+   "source_system": "SUPPORT",
+   "source_trust": 4,
+   "raw_name": "Abby Noland",
+   "name_norm": "ABBY NOLAND",
+   "raw_email": "anoland@yahoo.com.au",
+   "email_norm": "anoland@yahoo.com.au",
+   "raw_phone": null,
+   "phone_e164": null,
+   "raw_postcode": null,
+   "postcode_norm": null,
+   "dob": null,
+   "account_number": null,
+   "identity_strength": 1
+  },
+  {
+   "record_id": "POS-1b222aed",
+   "source_system": "POS",
+   "source_trust": 3,
+   "raw_name": "A Noland",
+   "name_norm": "A NOLAND",
+   "raw_email": null,
+   "email_norm": null,
+   "raw_phone": null,
+   "phone_e164": null,
+   "raw_postcode": "42",
+   "postcode_norm": null,
+   "dob": null,
+   "account_number": "ACC-8504064",
+   "identity_strength": 1
+  },
+  {
+   "record_id": "ENR-31fd9a08",
+   "source_system": "ENRICH",
+   "source_trust": 2,
+   "raw_name": "Abby Noland",
+   "name_norm": "ABBY NOLAND",
+   "raw_email": "anoland@yahoo.com.au",
+   "email_norm": "anoland@yahoo.com.au",
+   "raw_phone": null,
+   "phone_e164": null,
+   "raw_postcode": "4202",
+   "postcode_norm": "4202",
+   "dob": null,
+   "account_number": null,
+   "identity_strength": 2
+  }
+ ],
+ "01_identity_resolution_story:df_pairs": [
+  {
+   "record_id_a": "CRM-5d268dd4",
+   "record_id_b": "LOY-ac677db5",
+   "retrieved_by": "BOTH",
+   "strong_signals": 2,
+   "rule_score": 1.0,
+   "similarity": 0.905,
+   "combined_score": 1.0,
+   "idf_weight_sum": 9.21,
+   "min_shared_degree": 2,
+   "unshared_email_both": false,
+   "tier": "AUTO_MATCH",
+   "tier_reason": "Two independent strong identifiers agree with no contradicting evidence."
+  },
+  {
+   "record_id_a": "CRM-5d268dd4",
+   "record_id_b": "ENR-31fd9a08",
+   "retrieved_by": "BOTH",
+   "strong_signals": 1,
+   "rule_score": 0.97,
+   "similarity": 0.904,
+   "combined_score": 0.97,
+   "idf_weight_sum": 8.8,
+   "min_shared_degree": 3,
+   "unshared_email_both": false,
+   "tier": "AUTO_MATCH",
+   "tier_reason": "Score above the auto-match threshold with no contradicting evidence."
+  },
+  {
+   "record_id_a": "ENR-31fd9a08",
+   "record_id_b": "SUP-da73f0e1",
+   "retrieved_by": "BOTH",
+   "strong_signals": 1,
+   "rule_score": 0.85,
+   "similarity": 0.866,
+   "combined_score": 0.855,
+   "idf_weight_sum": 8.8,
+   "min_shared_degree": 3,
+   "unshared_email_both": false,
+   "tier": "GREY_ZONE",
+   "tier_reason": "One strong identifier agrees, but not enough to act on alone."
+  },
+  {
+   "record_id_a": "CRM-5d268dd4",
+   "record_id_b": "SUP-da73f0e1",
+   "retrieved_by": "BOTH",
+   "strong_signals": 1,
+   "rule_score": 0.85,
+   "similarity": 0.826,
+   "combined_score": 0.85,
+   "idf_weight_sum": 8.8,
+   "min_shared_degree": 3,
+   "unshared_email_both": false,
+   "tier": "GREY_ZONE",
+   "tier_reason": "One strong identifier agrees, but not enough to act on alone."
+  },
+  {
+   "record_id_a": "LOY-ac677db5",
+   "record_id_b": "POS-1b222aed",
+   "retrieved_by": "BOTH",
+   "strong_signals": 1,
+   "rule_score": 0.795,
+   "similarity": 0.79,
+   "combined_score": 0.795,
+   "idf_weight_sum": 9.21,
+   "min_shared_degree": 2,
+   "unshared_email_both": false,
+   "tier": "AUTO_MATCH",
+   "tier_reason": "Shared loyalty account number, forenames consistent, nothing contradicting."
+  },
+  {
+   "record_id_a": "ENR-31fd9a08",
+   "record_id_b": "LOY-ac677db5",
+   "retrieved_by": "BOTH",
+   "strong_signals": 0,
+   "rule_score": 0.384,
+   "similarity": 0.789,
+   "combined_score": 0.525,
+   "idf_weight_sum": 0.0,
+   "min_shared_degree": null,
+   "unshared_email_both": false,
+   "tier": "REJECT",
+   "tier_reason": "Below the rejection threshold."
+  },
+  {
+   "record_id_a": "POS-1b222aed",
+   "record_id_b": "SUP-da73f0e1",
+   "retrieved_by": "SEMANTIC_ONLY",
+   "strong_signals": 0,
+   "rule_score": 0.295,
+   "similarity": 0.739,
+   "combined_score": 0.451,
+   "idf_weight_sum": 0.0,
+   "min_shared_degree": null,
+   "unshared_email_both": false,
+   "tier": "REJECT",
+   "tier_reason": "POS stub has an unshared loyalty account or no postcode district and zero strong signals."
+  },
+  {
+   "record_id_a": "LOY-ac677db5",
+   "record_id_b": "SUP-da73f0e1",
+   "retrieved_by": "SEMANTIC_ONLY",
+   "strong_signals": 0,
+   "rule_score": 0.264,
+   "similarity": 0.722,
+   "combined_score": 0.424,
+   "idf_weight_sum": 0.0,
+   "min_shared_degree": null,
+   "unshared_email_both": false,
+   "tier": "REJECT",
+   "tier_reason": "Below the rejection threshold."
+  },
+  {
+   "record_id_a": "CRM-5d268dd4",
+   "record_id_b": "POS-1b222aed",
+   "retrieved_by": "LEXICAL_ONLY",
+   "strong_signals": 0,
+   "rule_score": 0.295,
+   "similarity": null,
+   "combined_score": 0.295,
+   "idf_weight_sum": 0.0,
+   "min_shared_degree": null,
+   "unshared_email_both": false,
+   "tier": "REJECT",
+   "tier_reason": "POS stub has an unshared loyalty account or no postcode district and zero strong signals."
+  },
+  {
+   "record_id_a": "ENR-31fd9a08",
+   "record_id_b": "POS-1b222aed",
+   "retrieved_by": "LEXICAL_ONLY",
+   "strong_signals": 0,
+   "rule_score": 0.295,
+   "similarity": null,
+   "combined_score": 0.295,
+   "idf_weight_sum": 0.0,
+   "min_shared_degree": null,
+   "unshared_email_both": false,
+   "tier": "REJECT",
+   "tier_reason": "POS stub has an unshared loyalty account or no postcode district and zero strong signals."
+  }
+ ],
+ "01_identity_resolution_story:df_survivorship": [
+  {
+   "field": "address",
+   "surviving_value": "33 Fraser Parade, Burleigh Heads QLD",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 1,
+   "distinct_values": 3,
+   "was_contested": true,
+   "provenance": "Selected from CRM (trust 9) over 2 competing value(s); corroborated by 1 source(s)."
+  },
+  {
+   "field": "forename",
+   "surviving_value": "Abby",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 3,
+   "distinct_values": 3,
+   "was_contested": true,
+   "provenance": "Selected from CRM (trust 9) over 2 competing value(s); corroborated by 3 source(s)."
+  },
+  {
+   "field": "full_name",
+   "surviving_value": "Abby Noland",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 3,
+   "distinct_values": 3,
+   "was_contested": true,
+   "provenance": "Selected from CRM (trust 9) over 2 competing value(s); corroborated by 3 source(s)."
+  },
+  {
+   "field": "postcode",
+   "surviving_value": "4220",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 1,
+   "distinct_values": 2,
+   "was_contested": true,
+   "provenance": "Selected from CRM (trust 9) over 1 competing value(s); corroborated by 1 source(s)."
+  },
+  {
+   "field": "account_number",
+   "surviving_value": "ACC-8504064",
+   "won_from_source": "LOYALTY",
+   "source_trust": 7,
+   "asserting_sources": 2,
+   "distinct_values": 1,
+   "was_contested": false,
+   "provenance": "Selected from LOYALTY (trust 7) \u2014 uncontested; corroborated by 2 source(s)."
+  },
+  {
+   "field": "city",
+   "surviving_value": "Gold Coast",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 2,
+   "distinct_values": 1,
+   "was_contested": false,
+   "provenance": "Selected from CRM (trust 9) \u2014 uncontested; corroborated by 2 source(s)."
+  },
+  {
+   "field": "dob",
+   "surviving_value": "1955-07-27",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 2,
+   "distinct_values": 1,
+   "was_contested": false,
+   "provenance": "Selected from CRM (trust 9) \u2014 uncontested; corroborated by 2 source(s)."
+  },
+  {
+   "field": "email",
+   "surviving_value": "anoland@yahoo.com.au",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 3,
+   "distinct_values": 1,
+   "was_contested": false,
+   "provenance": "Selected from CRM (trust 9) \u2014 uncontested; corroborated by 3 source(s)."
+  },
+  {
+   "field": "phone",
+   "surviving_value": "+61489909604",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 2,
+   "distinct_values": 1,
+   "was_contested": false,
+   "provenance": "Selected from CRM (trust 9) \u2014 uncontested; corroborated by 2 source(s)."
+  },
+  {
+   "field": "surname",
+   "surviving_value": "Noland",
+   "won_from_source": "CRM",
+   "source_trust": 9,
+   "asserting_sources": 5,
+   "distinct_values": 1,
+   "was_contested": false,
+   "provenance": "Selected from CRM (trust 9) \u2014 uncontested; corroborated by 5 source(s)."
+  }
+ ],
+ "01_identity_resolution_story:df_scorecard": [
+  {
+   "records": 20000,
+   "true_people": 8000,
+   "predicted_people": 13566,
+   "clusters_containing_multiple_people": 20,
+   "people_split_across_clusters": 4282,
+   "pairwise_precision": 0.9916,
+   "pairwise_recall": 0.4677,
+   "pairwise_f1": 0.6356,
+   "tp": 8782,
+   "fp": 74,
+   "fn": 9994,
+   "pairs_evaluated": 10773842,
+   "pairs_sent_to_llm": 41769,
+   "pct_of_pairs_using_an_llm": 0.388,
+   "adjudicator_model": "gemini-3.5-flash",
+   "prompt_version": "adjudicator-v2"
+  }
+ ],
+ "02_graph_pathology_and_rarity:df_rarity": [
+  {
+   "identifier_type": "email",
+   "distinct_identifiers": 7742,
+   "degree_1_unique": 5208,
+   "degree_2_to_5_household_or_person": 2531,
+   "degree_6_to_25": 0,
+   "promiscuous_hubs": 3,
+   "max_degree": 575,
+   "avg_idf_weight": 9.65
+  },
+  {
+   "identifier_type": "phone",
+   "distinct_identifiers": 6672,
+   "degree_1_unique": 4426,
+   "degree_2_to_5_household_or_person": 2243,
+   "degree_6_to_25": 0,
+   "promiscuous_hubs": 3,
+   "max_degree": 522,
+   "avg_idf_weight": 9.66
+  },
+  {
+   "identifier_type": "loyalty_account",
+   "distinct_identifiers": 4309,
+   "degree_1_unique": 3312,
+   "degree_2_to_5_household_or_person": 997,
+   "degree_6_to_25": 0,
+   "promiscuous_hubs": 0,
+   "max_degree": 4,
+   "avg_idf_weight": 9.73
+  },
+  {
+   "identifier_type": "device_id",
+   "distinct_identifiers": 1,
+   "degree_1_unique": 0,
+   "degree_2_to_5_household_or_person": 0,
+   "degree_6_to_25": 0,
+   "promiscuous_hubs": 1,
+   "max_degree": 547,
+   "avg_idf_weight": 3.6
+  }
+ ],
+ "02_graph_pathology_and_rarity:df_hubs": [
+  {
+   "identifier_id": "EM:service.desk@contact-centre.com.au",
+   "identifier_type": "email",
+   "degree": 575,
+   "degree_all_time": 575,
+   "idf_weight": 3.549,
+   "is_promiscuous": true,
+   "sources": "CALL|CRM|ECOM|ENRICH|LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "EM:kiosk.mel@store-checkout.com.au",
+   "identifier_type": "email",
+   "degree": 559,
+   "degree_all_time": 559,
+   "idf_weight": 3.577,
+   "is_promiscuous": true,
+   "sources": "CALL|CRM|ECOM|ENRICH|LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "DV:KIOSK-TERMINAL-AU-01",
+   "identifier_type": "device_id",
+   "degree": 547,
+   "degree_all_time": 547,
+   "idf_weight": 3.599,
+   "is_promiscuous": true,
+   "sources": "CALL|CRM|ECOM|ENRICH|LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "EM:kiosk.syd@store-checkout.com.au",
+   "identifier_type": "email",
+   "degree": 529,
+   "degree_all_time": 529,
+   "idf_weight": 3.632,
+   "is_promiscuous": true,
+   "sources": "CALL|CRM|ECOM|ENRICH|LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "PH:+61390002222",
+   "identifier_type": "phone",
+   "degree": 522,
+   "degree_all_time": 522,
+   "idf_weight": 3.646,
+   "is_promiscuous": true,
+   "sources": "CALL|CRM|ECOM|ENRICH|LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "PH:+61290001111",
+   "identifier_type": "phone",
+   "degree": 516,
+   "degree_all_time": 516,
+   "idf_weight": 3.657,
+   "is_promiscuous": true,
+   "sources": "CALL|CRM|ECOM|ENRICH|LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "PH:+61890003333",
+   "identifier_type": "phone",
+   "degree": 419,
+   "degree_all_time": 419,
+   "idf_weight": 3.866,
+   "is_promiscuous": true,
+   "sources": "CALL|CRM|ECOM|ENRICH|LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "AC:ACC-2827885",
+   "identifier_type": "loyalty_account",
+   "degree": 4,
+   "degree_all_time": 4,
+   "idf_weight": 8.517,
+   "is_promiscuous": false,
+   "sources": "LOYALTY|POS"
+  },
+  {
+   "identifier_id": "AC:ACC-4980450",
+   "identifier_type": "loyalty_account",
+   "degree": 4,
+   "degree_all_time": 4,
+   "idf_weight": 8.517,
+   "is_promiscuous": false,
+   "sources": "LOYALTY|POS"
+  },
+  {
+   "identifier_id": "AC:ACC-6720578",
+   "identifier_type": "loyalty_account",
+   "degree": 4,
+   "degree_all_time": 4,
+   "idf_weight": 8.517,
+   "is_promiscuous": false,
+   "sources": "LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "AC:ACC-8382853",
+   "identifier_type": "loyalty_account",
+   "degree": 4,
+   "degree_all_time": 4,
+   "idf_weight": 8.517,
+   "is_promiscuous": false,
+   "sources": "LOYALTY|POS|SUPPORT"
+  },
+  {
+   "identifier_id": "AC:ACC-8619302",
+   "identifier_type": "loyalty_account",
+   "degree": 4,
+   "degree_all_time": 4,
+   "idf_weight": 8.517,
+   "is_promiscuous": false,
+   "sources": "LOYALTY|POS|SUPPORT"
+  }
+ ],
+ "02_graph_pathology_and_rarity:df_gql_hub": [
+  {
+   "identifier_id": "EM:kiosk.mel@store-checkout.com.au",
+   "identifier_type": "email",
+   "degree": 559,
+   "is_promiscuous": true,
+   "attached_profiles": 559,
+   "sample_names": "Michael Harding, Kanokwan Prasertsak, Sutton Daskalakis, Lap Trinh, Caden Avramidis"
+  },
+  {
+   "identifier_id": "EM:thegills@gmail.com",
+   "identifier_type": "email",
+   "degree": 4,
+   "is_promiscuous": false,
+   "attached_profiles": 4,
+   "sample_names": "Tanmay Gill, Shaanthi Gill, Shanthi Gill, Tanmay Gill"
+  }
+ ],
+ "03_hybrid_search_and_2hop_features:df_legs": [
+  {
+   "retrieved_by": "LEXICAL_ONLY",
+   "pairs_retrieved": 10445365,
+   "became_auto_match": 6,
+   "became_grey_zone": 31003,
+   "became_reject": 10414356,
+   "avg_score": 0.025,
+   "avg_rrf": 0.0154,
+   "with_shared_account": 27,
+   "surname_differs_but_kept": 28545
+  },
+  {
+   "retrieved_by": "SEMANTIC_ONLY",
+   "pairs_retrieved": 244079,
+   "became_auto_match": 25,
+   "became_grey_zone": 1982,
+   "became_reject": 242072,
+   "avg_score": 0.311,
+   "avg_rrf": 0.014,
+   "with_shared_account": 0,
+   "surname_differs_but_kept": 1254
+  },
+  {
+   "retrieved_by": "BOTH",
+   "pairs_retrieved": 84398,
+   "became_auto_match": 4314,
+   "became_grey_zone": 8784,
+   "became_reject": 71300,
+   "avg_score": 0.339,
+   "avg_rrf": 0.03,
+   "with_shared_account": 1213,
+   "surname_differs_but_kept": 5234
+  }
+ ],
+ "03_hybrid_search_and_2hop_features:df_2hop": [
+  {
+   "neighbourhood_pattern": "1. Promiscuous Hub Collision (hub_only)",
+   "candidate_pairs": 2025,
+   "avg_idf_weight_sum": 0.0,
+   "avg_rule_score": 0.0,
+   "avg_combined_score": 0.007
+  },
+  {
+   "neighbourhood_pattern": "2. Household Shared Email/Phone (forename_conflict)",
+   "candidate_pairs": 445,
+   "avg_idf_weight_sum": 9.44,
+   "avg_rule_score": 0.653,
+   "avg_combined_score": 0.708
+  },
+  {
+   "neighbourhood_pattern": "3. 2-Hop Divergent Secondary IDs (unshared_*_both)",
+   "candidate_pairs": 124,
+   "avg_idf_weight_sum": 9.08,
+   "avg_rule_score": 0.839,
+   "avg_combined_score": 0.868
+  },
+  {
+   "neighbourhood_pattern": "4. Multi-Signal True Match (email + phone)",
+   "candidate_pairs": 557,
+   "avg_idf_weight_sum": 18.21,
+   "avg_rule_score": 0.997,
+   "avg_combined_score": 0.997
+  },
+  {
+   "neighbourhood_pattern": "5. Other Candidate Pairs",
+   "candidate_pairs": 10770691,
+   "avg_idf_weight_sum": 0.0,
+   "avg_rule_score": 0.027,
+   "avg_combined_score": 0.033
+  }
+ ],
+ "03_hybrid_search_and_2hop_features:df_funnel": [
+  {
+   "tier": "AUTO_MATCH",
+   "pairs": 4345,
+   "pct": 0.04,
+   "min_score": 0.409,
+   "avg_score": 0.926,
+   "max_score": 1.0,
+   "semantic_only": 25,
+   "lexical_only": 6,
+   "both": 4314
+  },
+  {
+   "tier": "GREY_ZONE",
+   "pairs": 41769,
+   "pct": 0.39,
+   "min_score": 0.15,
+   "avg_score": 0.267,
+   "max_score": 1.0,
+   "semantic_only": 1982,
+   "lexical_only": 31003,
+   "both": 8784
+  },
+  {
+   "tier": "REJECT",
+   "pairs": 10727728,
+   "pct": 99.57,
+   "min_score": 0.0,
+   "avg_score": 0.032,
+   "max_score": 1.0,
+   "semantic_only": 242072,
+   "lexical_only": 10414356,
+   "both": 71300
+  }
+ ],
+ "04_llm_adjudicator_and_contradiction_guard:df_adj_summary": [
+  {
+   "verdict": "NO_MATCH",
+   "pairs": 102799,
+   "avg_confidence": 0.934,
+   "above_accept_threshold": 98894,
+   "with_stated_contradiction": 102239,
+   "injection_detected": 1,
+   "model_errors": 0
+  },
+  {
+   "verdict": "MATCH",
+   "pairs": 6526,
+   "avg_confidence": 0.889,
+   "above_accept_threshold": 4691,
+   "with_stated_contradiction": 4521,
+   "injection_detected": 1,
+   "model_errors": 0
+  },
+  {
+   "verdict": "UNCERTAIN",
+   "pairs": 5407,
+   "avg_confidence": 0.629,
+   "above_accept_threshold": 1701,
+   "with_stated_contradiction": 2254,
+   "injection_detected": 0,
+   "model_errors": 0
+  }
+ ],
+ "04_llm_adjudicator_and_contradiction_guard:df_adj_samples": [
+  {
+   "record_id_a": "CALL-0ab5fdf7",
+   "record_id_b": "CALL-1dcdb5e3",
+   "a_name": "LUCAS GILES",
+   "b_name": "EVAN GILES",
+   "retrieved_by": "BOTH",
+   "decision": "NO_LINK",
+   "confidence": 1.0,
+   "rationale": "The records share a surname but have different forenames and no other linking identifiers, indicating different people."
+  },
+  {
+   "record_id_a": "CALL-19ca3cc9",
+   "record_id_b": "CRM-3eee35e0",
+   "a_name": "RANDY HORN",
+   "b_name": "KINSLEY HORN",
+   "retrieved_by": "SEMANTIC_ONLY",
+   "decision": "NO_LINK",
+   "confidence": 1.0,
+   "rationale": "The records describe two different people, Randy and Kinsley, who share a surname but reside at completely different addresses in different parts of the country."
+  },
+  {
+   "record_id_a": "CALL-19ca3cc9",
+   "record_id_b": "CRM-1acc25da",
+   "a_name": "RANDY HORN",
+   "b_name": "RANDY ELLIS",
+   "retrieved_by": "SEMANTIC_ONLY",
+   "decision": "NO_LINK",
+   "confidence": 1.0,
+   "rationale": "The records describe two different people named Randy with different surnames (Horn vs. Ellis) living at different addresses in different postcodes (3124 in Victoria vs. 4152 in Queensland)."
+  },
+  {
+   "record_id_a": "CALL-22006a7f",
+   "record_id_b": "ECOM-d5af8423",
+   "a_name": "JAMES PARKS",
+   "b_name": "BETTY PARKS",
+   "retrieved_by": "BOTH",
+   "decision": "NO_LINK",
+   "confidence": 1.0,
+   "rationale": "The records describe two different people (James and Betty) who only share a surname, indicating they are likely different members of a household rather than the same person."
+  },
+  {
+   "record_id_a": "CALL-235df592",
+   "record_id_b": "CALL-b57bf0ca",
+   "a_name": "TINA HODGE",
+   "b_name": "DOUGLAS HODGE",
+   "retrieved_by": "SEMANTIC_ONLY",
+   "decision": "NO_LINK",
+   "confidence": 1.0,
+   "rationale": "The records describe two different people (Tina Hodge and Douglas Hodge) living at different addresses with different postcodes, sharing only a surname."
+  },
+  {
+   "record_id_a": "CALL-235df592",
+   "record_id_b": "LOY-bbfef9a9",
+   "a_name": "TINA HODGE",
+   "b_name": "PADDY HODGE",
+   "retrieved_by": "SEMANTIC_ONLY",
+   "decision": "NO_LINK",
+   "confidence": 1.0,
+   "rationale": "The records represent two different individuals with different forenames residing at completely different addresses, with only a shared surname in common."
+  }
+ ],
+ "04_llm_adjudicator_and_contradiction_guard:df_injection": [
+  {
+   "record_id_a": "CRM-e05c5753",
+   "record_id_b": "SUP-d2f448bd",
+   "verdict": "MATCH",
+   "confidence": 0.99,
+   "injection_detected": false,
+   "rationale": "The records share an identical name, email address, and postcode with no contradicting information."
+  },
+  {
+   "record_id_a": "CRM-f38746e2",
+   "record_id_b": "SUP-37a7e8e5",
+   "verdict": "MATCH",
+   "confidence": 0.99,
+   "injection_detected": true,
+   "rationale": "The records share the same unique email address (stephen.warren76@bigpond.com) and exact same name, with no contradicting evidence."
+  },
+  {
+   "record_id_a": "POS-30c4f31e",
+   "record_id_b": "SUP-b3278978",
+   "verdict": "NO_MATCH",
+   "confidence": 0.99,
+   "injection_detected": false,
+   "rationale": "The records describe two different people, J Jenkyns and John Wilkins, with different names and no shared identifiers."
+  },
+  {
+   "record_id_a": "CALL-693d5729",
+   "record_id_b": "SUP-d2f448bd",
+   "verdict": "NO_MATCH",
+   "confidence": 0.99,
+   "injection_detected": false,
+   "rationale": "The records describe two entirely different individuals, Deborah Hampton and Jonathan Jones, who only share a postcode."
+  },
+  {
+   "record_id_a": "POS-8d386065",
+   "record_id_b": "SUP-37a7e8e5",
+   "verdict": "NO_MATCH",
+   "confidence": 0.95,
+   "injection_detected": false,
+   "rationale": "The records represent different people sharing a surname, as 'L Warren' and 'Stephen Warren' have conflicting first names/initials and no other matching identifiers."
+  },
+  {
+   "record_id_a": "CALL-b881fef5",
+   "record_id_b": "SUP-d2f448bd",
+   "verdict": "NO_MATCH",
+   "confidence": 0.95,
+   "injection_detected": false,
+   "rationale": "The records describe two different people (Joe Olson and Jonathan Jones) who merely share a postcode, which does not constitute an identity match."
+  }
+ ],
+ "04_llm_adjudicator_and_contradiction_guard:df_pruned": [
+  {
+   "record_id_a": "CRM-932d4c87",
+   "a_name": "SPYRIDON DASKALAKIS",
+   "record_id_b": "ECOM-a6300638",
+   "b_name": "SPYRIDON DASKALAKIS",
+   "decided_by": "RULE",
+   "confidence": 1.0,
+   "suppressed_by_contradiction": true,
+   "rationale": "Two independent strong identifiers agree with no contradicting evidence."
+  },
+  {
+   "record_id_a": "CRM-52803fb6",
+   "a_name": "GERARDO WADE",
+   "record_id_b": "ECOM-799997c6",
+   "b_name": "GERARDO WADE",
+   "decided_by": "RULE",
+   "confidence": 1.0,
+   "suppressed_by_contradiction": true,
+   "rationale": "Two independent strong identifiers agree with no contradicting evidence."
+  },
+  {
+   "record_id_a": "CRM-79197785",
+   "a_name": "STAVROULA HATZIS",
+   "record_id_b": "SUP-251a8a4d",
+   "b_name": "STAVROULA HATZIS",
+   "decided_by": "LLM",
+   "confidence": 0.99,
+   "suppressed_by_contradiction": true,
+   "rationale": "The records share an identical email address and full name with no contradicting information."
+  },
+  {
+   "record_id_a": "CRM-a4b0854e",
+   "a_name": "MAIHUONG SON",
+   "record_id_b": "ECOM-e0c08181",
+   "b_name": "MAIHUONG SON",
+   "decided_by": "LLM",
+   "confidence": 0.98,
+   "suppressed_by_contradiction": true,
+   "rationale": "The records share an identical email address and full name (MAIHUONG SON) with no conflicting information."
+  },
+  {
+   "record_id_a": "ECOM-0f26d811",
+   "a_name": "BRAXTON HENDRICKS",
+   "record_id_b": "LOY-2ebfbdb0",
+   "b_name": "B HENDRICKS",
+   "decided_by": "LLM",
+   "confidence": 0.95,
+   "suppressed_by_contradiction": true,
+   "rationale": "The records share a unique mobile phone number, matching postcode, matching surname, and a matching first initial, with no conflicting information present."
+  },
+  {
+   "record_id_a": "ECOM-9af071da",
+   "a_name": "MADELEINE DAVENPORT",
+   "record_id_b": "LOY-4baf0bfb",
+   "b_name": "M DAVENPORT",
+   "decided_by": "LLM",
+   "confidence": 0.95,
+   "suppressed_by_contradiction": true,
+   "rationale": "The records share a unique mobile phone number and matching postcode with compatible names (Madeleine Davenport and M Davenport) and no contradictions."
+  }
+ ],
+ "04_llm_adjudicator_and_contradiction_guard:df_cases": [
+  {
+   "case_type": "CONSENT_CONFLICT",
+   "expected_outcome": "MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 66,
+   "tp": 66,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "passed": true,
+   "diagnosis": "Handled correctly."
+  },
+  {
+   "case_type": "NAME_ORDER_TRAP",
+   "expected_outcome": "DO_NOT_MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 44,
+   "tp": 44,
+   "fp": 0,
+   "fn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "passed": true,
+   "diagnosis": "Handled correctly."
+  },
+  {
+   "case_type": "UNSTRUCTURED_ONLY",
+   "expected_outcome": "DO_NOT_MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 46,
+   "tp": 30,
+   "fp": 2,
+   "fn": 14,
+   "precision": 0.938,
+   "recall": 0.682,
+   "passed": false,
+   "diagnosis": "OVER-MERGED \u2014 this is the serious direction of failure. Tighten before demoing."
+  },
+  {
+   "case_type": "SINGLETON",
+   "expected_outcome": "DO_NOT_MERGE",
+   "target_instances": 0,
+   "pairs_evaluated": 2,
+   "tp": 0,
+   "fp": 2,
+   "fn": 0,
+   "precision": 0.0,
+   "recall": null,
+   "passed": false,
+   "diagnosis": "OVER-MERGED \u2014 this is the serious direction of failure. Tighten before demoing."
+  },
+  {
+   "case_type": "NAME_ORDER",
+   "expected_outcome": "MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 66,
+   "tp": 62,
+   "fp": 0,
+   "fn": 4,
+   "precision": 1.0,
+   "recall": 0.939,
+   "passed": false,
+   "diagnosis": "Reached the adjudicator and was declined. A prompt or evidence problem."
+  },
+  {
+   "case_type": "SHARED_EMAIL",
+   "expected_outcome": "DO_NOT_MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 44,
+   "tp": 41,
+   "fp": 0,
+   "fn": 3,
+   "precision": 1.0,
+   "recall": 0.932,
+   "passed": false,
+   "diagnosis": "Retrieved but scored below the grey zone. A threshold problem, not a search problem."
+  },
+  {
+   "case_type": "RISK_FLAG",
+   "expected_outcome": "MERGE_WITH_FLAG",
+   "target_instances": 22,
+   "pairs_evaluated": 66,
+   "tp": 60,
+   "fp": 0,
+   "fn": 6,
+   "precision": 1.0,
+   "recall": 0.909,
+   "passed": false,
+   "diagnosis": "Missed at retrieval. Neither search leg surfaced the pair; blocking or embedding text is the place to look."
+  },
+  {
+   "case_type": "DIACRITIC_VARIANT",
+   "expected_outcome": "MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 66,
+   "tp": 57,
+   "fp": 0,
+   "fn": 9,
+   "precision": 1.0,
+   "recall": 0.864,
+   "passed": false,
+   "diagnosis": "Retrieved but scored below the grey zone. A threshold problem, not a search problem."
+  },
+  {
+   "case_type": "SOLE_TRADER",
+   "expected_outcome": "MERGE_WITH_FLAG",
+   "target_instances": 22,
+   "pairs_evaluated": 66,
+   "tp": 49,
+   "fp": 0,
+   "fn": 17,
+   "precision": 1.0,
+   "recall": 0.742,
+   "passed": false,
+   "diagnosis": "Retrieved but scored below the grey zone. A threshold problem, not a search problem."
+  },
+  {
+   "case_type": "ACCOUNT_ONLY",
+   "expected_outcome": "MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 22,
+   "tp": 16,
+   "fp": 0,
+   "fn": 6,
+   "precision": 1.0,
+   "recall": 0.727,
+   "passed": false,
+   "diagnosis": "Reached the adjudicator and was declined. A prompt or evidence problem."
+  },
+  {
+   "case_type": "SIBLING_TRAP",
+   "expected_outcome": "DO_NOT_MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 48,
+   "tp": 34,
+   "fp": 0,
+   "fn": 14,
+   "precision": 1.0,
+   "recall": 0.708,
+   "passed": false,
+   "diagnosis": "Missed at retrieval. Neither search leg surfaced the pair; blocking or embedding text is the place to look."
+  },
+  {
+   "case_type": "TRANSLITERATION",
+   "expected_outcome": "MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 66,
+   "tp": 45,
+   "fp": 0,
+   "fn": 21,
+   "precision": 1.0,
+   "recall": 0.682,
+   "passed": false,
+   "diagnosis": "Missed at retrieval. Neither search leg surfaced the pair; blocking or embedding text is the place to look."
+  },
+  {
+   "case_type": "POSTCODE_NEAR_MISS",
+   "expected_outcome": "DO_NOT_MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 46,
+   "tp": 25,
+   "fp": 0,
+   "fn": 21,
+   "precision": 1.0,
+   "recall": 0.543,
+   "passed": false,
+   "diagnosis": "Missed at retrieval. Neither search leg surfaced the pair; blocking or embedding text is the place to look."
+  },
+  {
+   "case_type": "OVERMERGE_BAIT",
+   "expected_outcome": "BREAK_CHAIN",
+   "target_instances": 22,
+   "pairs_evaluated": 44,
+   "tp": 21,
+   "fp": 0,
+   "fn": 23,
+   "precision": 1.0,
+   "recall": 0.477,
+   "passed": false,
+   "diagnosis": "Missed at retrieval. Neither search leg surfaced the pair; blocking or embedding text is the place to look."
+  },
+  {
+   "case_type": "HOUSEHOLD",
+   "expected_outcome": "DO_NOT_MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 102,
+   "tp": 47,
+   "fp": 0,
+   "fn": 55,
+   "precision": 1.0,
+   "recall": 0.461,
+   "passed": false,
+   "diagnosis": "Missed at retrieval. Neither search leg surfaced the pair; blocking or embedding text is the place to look."
+  },
+  {
+   "case_type": "MARRIED_NAME",
+   "expected_outcome": "MERGE",
+   "target_instances": 22,
+   "pairs_evaluated": 66,
+   "tp": 21,
+   "fp": 0,
+   "fn": 45,
+   "precision": 1.0,
+   "recall": 0.318,
+   "passed": false,
+   "diagnosis": "Missed at retrieval. Neither search leg surfaced the pair; blocking or embedding text is the place to look."
+  }
+ ],
+ "05_semantic_graph_governance_and_roi:df_semantic_graph": [
+  {
+   "brand": "CRM",
+   "profiles": 4155,
+   "links": 9085,
+   "distinct_identifiers": 8295,
+   "touching_hubs": 679,
+   "baseline_clusters": 2948,
+   "weighted_clusters": 4133,
+   "composable_clusters": 4154,
+   "in_baseline_hairballs": 1196,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "ECOM",
+   "profiles": 3752,
+   "links": 6110,
+   "distinct_identifiers": 5386,
+   "touching_hubs": 628,
+   "baseline_clusters": 2733,
+   "weighted_clusters": 3730,
+   "composable_clusters": 3751,
+   "in_baseline_hairballs": 1008,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "LOYALTY",
+   "profiles": 3248,
+   "links": 7095,
+   "distinct_identifiers": 6503,
+   "touching_hubs": 525,
+   "baseline_clusters": 2287,
+   "weighted_clusters": 3248,
+   "composable_clusters": 3246,
+   "in_baseline_hairballs": 962,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "POS",
+   "profiles": 2516,
+   "links": 2956,
+   "distinct_identifiers": 1665,
+   "touching_hubs": 927,
+   "baseline_clusters": 1189,
+   "weighted_clusters": 2255,
+   "composable_clusters": 2252,
+   "in_baseline_hairballs": 1180,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "ENRICH",
+   "profiles": 1842,
+   "links": 2165,
+   "distinct_identifiers": 1711,
+   "touching_hubs": 291,
+   "baseline_clusters": 1268,
+   "weighted_clusters": 1704,
+   "composable_clusters": 1718,
+   "in_baseline_hairballs": 486,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "SUPPORT",
+   "profiles": 854,
+   "links": 1148,
+   "distinct_identifiers": 979,
+   "touching_hubs": 132,
+   "baseline_clusters": 568,
+   "weighted_clusters": 823,
+   "composable_clusters": 819,
+   "in_baseline_hairballs": 265,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "CALL",
+   "profiles": 257,
+   "links": 347,
+   "distinct_identifiers": 277,
+   "touching_hubs": 66,
+   "baseline_clusters": 160,
+   "weighted_clusters": 257,
+   "composable_clusters": 257,
+   "in_baseline_hairballs": 98,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  }
+ ],
+ "05_semantic_graph_governance_and_roi:df_consent": [
+  {
+   "channel": "EMAIL",
+   "purpose": "MARKETING",
+   "people_with_a_stated_preference": 3351,
+   "audience_union_rule": 2063,
+   "audience_intersection_rule": 1861,
+   "contacts_the_union_rule_would_add": 202,
+   "of_which_explicitly_withdrawn": 72,
+   "suppressed_for_risk": 66,
+   "pct_of_union_audience_unlawful": 9.79
+  },
+  {
+   "channel": "SMS",
+   "purpose": "MARKETING",
+   "people_with_a_stated_preference": 2271,
+   "audience_union_rule": 1378,
+   "audience_intersection_rule": 1286,
+   "contacts_the_union_rule_would_add": 92,
+   "of_which_explicitly_withdrawn": 32,
+   "suppressed_for_risk": 66,
+   "pct_of_union_audience_unlawful": 6.68
+  },
+  {
+   "channel": "POST",
+   "purpose": "MARKETING",
+   "people_with_a_stated_preference": 1697,
+   "audience_union_rule": 1000,
+   "audience_intersection_rule": 951,
+   "contacts_the_union_rule_would_add": 49,
+   "of_which_explicitly_withdrawn": 17,
+   "suppressed_for_risk": 66,
+   "pct_of_union_audience_unlawful": 4.9
+  },
+  {
+   "channel": "PHONE",
+   "purpose": "MARKETING",
+   "people_with_a_stated_preference": 1270,
+   "audience_union_rule": 756,
+   "audience_intersection_rule": 733,
+   "contacts_the_union_rule_would_add": 23,
+   "of_which_explicitly_withdrawn": 6,
+   "suppressed_for_risk": 66,
+   "pct_of_union_audience_unlawful": 3.04
+  }
+ ],
+ "05_semantic_graph_governance_and_roi:df_consent_conflicts": [
+  {
+   "person_id": "PER-4490c5b70d037280",
+   "full_name": "Lucille Osman",
+   "channel": "POST",
+   "granted_count": 2,
+   "withdrawn_count": 1,
+   "would_have_been_contacted": "GRANTED",
+   "actual_decision": "WITHDRAWN",
+   "explanation": "Withdrawn on 2019-05-21. Withdrawal is absolute and is not overridden by a later grant from another source."
+  },
+  {
+   "person_id": "PER-52c80bb634a27ec5",
+   "full_name": "Tengfei Chi",
+   "channel": "EMAIL",
+   "granted_count": 2,
+   "withdrawn_count": 1,
+   "would_have_been_contacted": "GRANTED",
+   "actual_decision": "WITHDRAWN",
+   "explanation": "Withdrawn on 2023-10-19. Withdrawal is absolute and is not overridden by a later grant from another source."
+  },
+  {
+   "person_id": "PER-79474a4aaffe6762",
+   "full_name": "Malti Nagpal",
+   "channel": "EMAIL",
+   "granted_count": 2,
+   "withdrawn_count": 1,
+   "would_have_been_contacted": "GRANTED",
+   "actual_decision": "WITHDRAWN",
+   "explanation": "Withdrawn on 2021-07-15. Withdrawal is absolute and is not overridden by a later grant from another source."
+  },
+  {
+   "person_id": "PER-44486f5a5ef42466",
+   "full_name": "Areej Hamade",
+   "channel": "EMAIL",
+   "granted_count": 1,
+   "withdrawn_count": 1,
+   "would_have_been_contacted": "GRANTED",
+   "actual_decision": "WITHDRAWN",
+   "explanation": "Withdrawn on 2025-10-10. Withdrawal is absolute and is not overridden by a later grant from another source."
+  },
+  {
+   "person_id": "PER-4e9c97bed29db7a7",
+   "full_name": "Jackson Larson",
+   "channel": "EMAIL",
+   "granted_count": 1,
+   "withdrawn_count": 1,
+   "would_have_been_contacted": "GRANTED",
+   "actual_decision": "WITHDRAWN",
+   "explanation": "Withdrawn on 2025-10-14. Withdrawal is absolute and is not overridden by a later grant from another source."
+  }
+ ],
+ "05_semantic_graph_governance_and_roi:df_roi": [
+  {
+   "basis": "resolved \u00b7 one person = one customer",
+   "customers": 5293,
+   "total_spend": "479989.09",
+   "spend_per_customer": "90.68"
+  },
+  {
+   "basis": "unresolved \u00b7 one loyalty card = one customer",
+   "customers": 1658,
+   "total_spend": "162366",
+   "spend_per_customer": "97.93"
+  }
+ ],
+ "05_semantic_graph_governance_and_roi:df_waste": [
+  {
+   "households": 753,
+   "people": 864,
+   "duplicate_mailings_avoided": 111,
+   "pct_of_mailings_avoidable": 12.85,
+   "multi_person_households": 100,
+   "multi_surname_households": 30
+  }
+ ],
+ "05_semantic_graph_governance_and_roi:df_cost": [
+  {
+   "demo_records": 20000,
+   "demo_people_resolved": 13566,
+   "ai_calls": 64147,
+   "total_tokens": 69712806,
+   "usd_extraction": 0.0367,
+   "usd_embedding": 0.0483,
+   "usd_adjudication": 131.5064,
+   "usd_model_total": 131.5914,
+   "usd_model_per_1k_records": 6.5796,
+   "target_records": 15000000,
+   "usd_model_at_target_per_rebuild": 98693.56,
+   "usd_adjudication_ledger_to_date": 362.17
+  }
+ ],
+ "act2_hybrid_search_llm_and_scorecard:bqs2-graph-expand": [
+  {
+   "brand": "CRM",
+   "profiles": 4155,
+   "links": 9085,
+   "distinct_identifiers": 8295,
+   "touching_hubs": 679,
+   "baseline_clusters": 2948,
+   "weighted_clusters": 4133,
+   "composable_clusters": 4154,
+   "in_baseline_hairballs": 1196,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "ECOM",
+   "profiles": 3752,
+   "links": 6110,
+   "distinct_identifiers": 5386,
+   "touching_hubs": 628,
+   "baseline_clusters": 2733,
+   "weighted_clusters": 3730,
+   "composable_clusters": 3751,
+   "in_baseline_hairballs": 1008,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "LOYALTY",
+   "profiles": 3248,
+   "links": 7095,
+   "distinct_identifiers": 6503,
+   "touching_hubs": 525,
+   "baseline_clusters": 2287,
+   "weighted_clusters": 3248,
+   "composable_clusters": 3246,
+   "in_baseline_hairballs": 962,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "POS",
+   "profiles": 2516,
+   "links": 2956,
+   "distinct_identifiers": 1665,
+   "touching_hubs": 927,
+   "baseline_clusters": 1189,
+   "weighted_clusters": 2255,
+   "composable_clusters": 2252,
+   "in_baseline_hairballs": 1180,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "ENRICH",
+   "profiles": 1842,
+   "links": 2165,
+   "distinct_identifiers": 1711,
+   "touching_hubs": 291,
+   "baseline_clusters": 1268,
+   "weighted_clusters": 1704,
+   "composable_clusters": 1718,
+   "in_baseline_hairballs": 486,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "SUPPORT",
+   "profiles": 854,
+   "links": 1148,
+   "distinct_identifiers": 979,
+   "touching_hubs": 132,
+   "baseline_clusters": 568,
+   "weighted_clusters": 823,
+   "composable_clusters": 819,
+   "in_baseline_hairballs": 265,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  },
+  {
+   "brand": "CALL",
+   "profiles": 257,
+   "links": 347,
+   "distinct_identifiers": 277,
+   "touching_hubs": 66,
+   "baseline_clusters": 160,
+   "weighted_clusters": 257,
+   "composable_clusters": 257,
+   "in_baseline_hairballs": 98,
+   "in_weighted_hairballs": 0,
+   "in_composable_hairballs": 0
+  }
+ ],
+ "act2_hybrid_search_llm_and_scorecard:bqs2-method-comparison": [
+  {
+   "pathology": "ALL",
+   "method": "baseline_cc",
+   "tp": 8064,
+   "fp": 13488214,
+   "fn": 10712,
+   "precision": 0.0006,
+   "recall": 0.4295,
+   "f1": 0.0012
+  },
+  {
+   "pathology": "ALL",
+   "method": "weighted_cc",
+   "tp": 7566,
+   "fp": 321,
+   "fn": 11210,
+   "precision": 0.9593,
+   "recall": 0.403,
+   "f1": 0.5675
+  },
+  {
+   "pathology": "ALL",
+   "method": "composable_cdp",
+   "tp": 8782,
+   "fp": 74,
+   "fn": 9994,
+   "precision": 0.9916,
+   "recall": 0.4677,
+   "f1": 0.6356
+  },
+  {
+   "pathology": "hub",
+   "method": "baseline_cc",
+   "tp": 2557,
+   "fp": 13488039,
+   "fn": 2883,
+   "precision": 0.0002,
+   "recall": 0.47,
+   "f1": 0.0004
+  },
+  {
+   "pathology": "hub",
+   "method": "weighted_cc",
+   "tp": 2077,
+   "fp": 64,
+   "fn": 3363,
+   "precision": 0.9701,
+   "recall": 0.3818,
+   "f1": 0.5479
+  },
+  {
+   "pathology": "hub",
+   "method": "composable_cdp",
+   "tp": 2404,
+   "fp": 19,
+   "fn": 3036,
+   "precision": 0.9922,
+   "recall": 0.4419,
+   "f1": 0.6115
+  },
+  {
+   "pathology": "household",
+   "method": "baseline_cc",
+   "tp": 151,
+   "fp": 54,
+   "fn": 87,
+   "precision": 0.7366,
+   "recall": 0.6345,
+   "f1": 0.6817
+  },
+  {
+   "pathology": "household",
+   "method": "weighted_cc",
+   "tp": 147,
+   "fp": 100,
+   "fn": 91,
+   "precision": 0.5951,
+   "recall": 0.6176,
+   "f1": 0.6062
+  },
+  {
+   "pathology": "household",
+   "method": "composable_cdp",
+   "tp": 152,
+   "fp": 2,
+   "fn": 86,
+   "precision": 0.987,
+   "recall": 0.6387,
+   "f1": 0.7755
+  },
+  {
+   "pathology": "supersession",
+   "method": "baseline_cc",
+   "tp": 28,
+   "fp": 29,
+   "fn": 62,
+   "precision": 0.4912,
+   "recall": 0.3111,
+   "f1": 0.381
+  },
+  {
+   "pathology": "supersession",
+   "method": "weighted_cc",
+   "tp": 24,
+   "fp": 38,
+   "fn": 66,
+   "precision": 0.3871,
+   "recall": 0.2667,
+   "f1": 0.3158
+  },
+  {
+   "pathology": "supersession",
+   "method": "composable_cdp",
+   "tp": 46,
+   "fp": 2,
+   "fn": 44,
+   "precision": 0.9583,
+   "recall": 0.5111,
+   "f1": 0.6667
+  },
+  {
+   "pathology": "semantic_fuzzy",
+   "method": "baseline_cc",
+   "tp": 307,
+   "fp": 0,
+   "fn": 89,
+   "precision": 1.0,
+   "recall": 0.7753,
+   "f1": 0.8734
+  },
+  {
+   "pathology": "semantic_fuzzy",
+   "method": "weighted_cc",
+   "tp": 305,
+   "fp": 0,
+   "fn": 91,
+   "precision": 1.0,
+   "recall": 0.7702,
+   "f1": 0.8702
+  },
+  {
+   "pathology": "semantic_fuzzy",
+   "method": "composable_cdp",
+   "tp": 294,
+   "fp": 0,
+   "fn": 102,
+   "precision": 1.0,
+   "recall": 0.7424,
+   "f1": 0.8522
+  }
+ ]
+}

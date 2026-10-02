@@ -18,7 +18,7 @@ from typing import Any
 
 PROJECT = os.environ.get("CDP_PROJECT", "all-things-cdp")
 DATASET = os.environ.get("CDP_DS", "cdp")
-MODEL = os.environ.get("CDP_ADK_MODEL", "gemini-2.5-flash")
+MODEL = os.environ.get("CDP_ADK_MODEL", "gemini-3.5-flash")
 
 
 def _run_query(sql: str, params: list[Any] | None = None) -> list[dict[str, Any]]:
@@ -241,7 +241,7 @@ Always follow these rules:
    - 1-hop Bipartite Identifier Graph Rarity (`idf_weight = LN(1 + N / degree)`, `is_promiscuous` for degree > 25)
    - 2-hop Neighbourhood Features (`unshared_email_both`, `unshared_phone_both`, `forename_conflict`)
    - Hybrid Search (`AI.SEARCH` / `VECTOR_SEARCH` + Reciprocal Rank Fusion)
-   - Gemini 2.5 Flash grey-zone adjudication (`AI.GENERATE`)
+   - Gemini 3.5 Flash grey-zone adjudication (`AI.GENERATE`)
    - Pass-2 Transitive Contradiction Pruning (`suppressed_by_contradiction`)
 3. Always refer to governance metadata and business glossaries as BigQuery Knowledge Catalog.
 """

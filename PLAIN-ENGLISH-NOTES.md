@@ -207,7 +207,7 @@ You may hear data scientists propose a **Graph Neural Network (GNN)** — specif
    - *1-hop rarity:* Is this shared email rare (used by 2 records) or a promiscuous store kiosk (used by 559 records)?
    - *2-hop conflicts:* Do Record A and Record B also have *different* personal mobile numbers or *different* first names in their 2-hop neighbourhood (like two siblings sharing a family email)?
 4. **Why we don't need a PyTorch training pipeline to know that:** In a customer database, we already know what an email, phone number, and first name are! Instead of exporting data to GPUs, training a black-box neural network, and dealing with stale node embeddings every time a new customer signs up, we calculate **1-hop Inverse Document Frequency rarity (`idf_weight`)** and **2-hop neighbourhood conflicts (`unshared_email_both`, `unshared_phone_both`, `forename_conflict`)** directly in SQL (`40_block.sql` and `50_candidates.sql`).
-5. **Best of breed when combined with Search + AI Adjudicator:** A graph model can only score records that already share an exact identifier. By combining **2-Hop SQL Graph Features** with **Hybrid Search (`AI.SEARCH` + RRF)** and **Gemini 2.5 Flash Adjudication**, we catch misspelled and transliterated names that share *no* exact identifier, while cutting false positives from `321` (graph rarity alone) down to **`45` (`99.46%` precision)** — with **zero false positives across all 16 planted hard-case scenarios**.
+5. **Best of breed when combined with Search + AI Adjudicator:** A graph model can only score records that already share an exact identifier. By combining **2-Hop SQL Graph Features** with **Hybrid Search (`AI.SEARCH` + RRF)** and **Gemini 3.5 Flash Adjudication**, we catch misspelled and transliterated names that share *no* exact identifier, while cutting false positives from `321` (graph rarity alone) down to **`74` (`99.16%` precision)**. It is not perfect: only 2 of the 15 planted hard-case types pass outright, and 4 false merges remain in the hard-case set (2 where a caller rings about a partner's account, 2 on people who should never be merged).
 
 ---
 
@@ -227,7 +227,7 @@ The comparison worth making is not "AI versus perfect". It's "AI versus a rules 
 ## Honest caveats to state out loud
 
 - **Two capabilities are in Preview** (pre-general-release): the combined search method, and reading data directly from other clouds. Neither sits in the critical path — the core identity engine uses fully released features only.
-- **The funnel and benchmark figures are measured on the 20,000-record synthetic corpus (`all-things-cdp.cdp`)**: `99.61%` of candidate pairs are settled deterministically (`0.04%` auto-match, `99.57%` auto-reject), and only `0.39%` (`41,769` pairs) are sent to Gemini 2.5 Flash — costing **`$0.085` in total AI model spend** for the 20,000-record run.
+- **The funnel and benchmark figures are measured on the 20,000-record synthetic corpus (`all-things-cdp.cdp`)**: `99.61%` of candidate pairs are settled deterministically (`0.04%` auto-match, `99.57%` auto-reject), and only `0.39%` (`41,769` pairs) are sent to Gemini 3.5 Flash. That small slice is still where nearly all the AI money goes: one clean rebuild costs about **`$131.59`** in model spend (`$6.58` per 1,000 records), estimated from a 300-call measured sample of the adjudicator's token usage.
 - **Data stewards have two interactive interfaces in the repo:** the **5-Act Notebook Suite** (`demo/notebooks/`) and the **Google ADK Explainer Agent** (`demo/agents/explainer_agent/`).
 
 ---
@@ -263,7 +263,7 @@ The comparison worth making is not "AI versus perfect". It's "AI versus a rules 
 Yes — and it was the right idea. It failed on cost, and on the fact that nobody could explain its decisions. Both of those constraints have genuinely changed.
 
 **"How much will the AI cost?"**
-Only the ambiguous `0.39%` minority goes near it. On our 20,000-record benchmark corpus, the entire AI run costs **`$0.085`** (`~$63.80` extrapolated linearly to 15 million records).
+Only the ambiguous `0.39%` minority goes near it. But each of those judgements is a full Gemini call (about 1,570 tokens in, 90 out). On our 20,000-record benchmark corpus, one clean rebuild costs about **`$131.59`** in model spend — **`$6.58` per 1,000 records**, or roughly **`$98.7k`** if you rebuilt all 15 million records from scratch (a linear floor, before BigQuery compute). Nobody should run it that way: in steady state only new or changed records reach the grey zone, and tighter thresholds trade recall for cost (`v_cost_sensitivity`). The figure is estimated from a 300-call measured sample because older calls did not record token usage.
 
 **"Can we keep our existing CDP?"**
 Yes. The golden record moves to BigQuery; your existing tool becomes one of the places you send it.

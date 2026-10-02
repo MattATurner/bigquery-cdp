@@ -14,7 +14,7 @@ Generates:
 Every notebook contains:
   1. Real executable Python + `%%bigquery` cells (and `%%bigquery --graph` in BigQuery Studio editions)
   2. Pre-populated outputs captured from live execution against `all-things-cdp.cdp` (20,000 records,
-     13,925 true people, 16 planted hard-case archetypes) so readers can inspect results immediately
+     8,000 true people, 15 planted hard-case types) so readers can inspect results immediately
      in GitHub, Colab Enterprise, or BigQuery Studio without waiting for a full pipeline run.
 """
 
@@ -222,7 +222,7 @@ This notebook is the **15-minute guided tour** of the **Composable Customer Data
 
 It combines two complementary breakthroughs inside a single SQL-native warehouse pipeline:
 1. **Bipartite Identifier Graph Rarity & 2-Hop Neighbourhood Features (`40_block.sql` + `50_candidates.sql`)** — replacing fragile external PyTorch/GraphSAGE training pipelines with closed-form Inverse Document Frequency (`LN(1 + N / degree)`) and explicit 2-hop neighbourhood comparisons (`unshared_email_both`, `unshared_phone_both`, `street_conflict`).
-2. **Hybrid Vector + Lexical Search (`AI.SEARCH` / `VECTOR_SEARCH` + Reciprocal Rank Fusion) + Gemini 2.5 Flash Adjudication (`AI.GENERATE`) + Pass-2 Contradiction Pruning (`60_adjudicate.sql` + `70_graph.sql`)** — catching fuzzy semantic matches (transliterations, nicknames, unstructured call transcripts) while achieving **zero false positives across all 16 planted hard-case archetypes**.
+2. **Hybrid Vector + Lexical Search (`AI.SEARCH` / `VECTOR_SEARCH` + Reciprocal Rank Fusion) + Gemini 3.5 Flash Adjudication (`AI.GENERATE`) + Pass-2 Contradiction Pruning (`60_adjudicate.sql` + `70_graph.sql`)** — catching fuzzy semantic matches (transliterations, nicknames, unstructured call transcripts) while keeping false merges to **4 across the planted hard cases** (`99.16%` corpus-wide pairwise precision).
 
 ### The 5-Act Notebook Suite
 | Notebook | Act | Focus |
@@ -230,7 +230,7 @@ It combines two complementary breakthroughs inside a single SQL-native warehouse
 | **`01_identity_resolution_story.ipynb`** *(this notebook)* | **Overview** | Executive 3-method benchmark + following **one customer (`Abby Noland`, `PER-1cdfdb9f52ddb25a`)** end-to-end |
 | **`02_graph_pathology_and_rarity.ipynb`** | **Act 1** | Why naive graph connected components collapses 5,195 profiles into a hairball, and how IDF Rarity fixes it |
 | **`03_hybrid_search_and_2hop_features.ipynb`** | **Act 2** | Why Hybrid Search (`AI.SEARCH` + RRF) + 2-Hop SQL Graph Features beat standalone GraphSAGE GNNs |
-| **`04_llm_adjudicator_and_contradiction_guard.ipynb`** | **Act 3** | Gemini 2.5 Flash grey-zone adjudication, prompt-injection defense, and Pass-2 transitive contradiction pruning |
+| **`04_llm_adjudicator_and_contradiction_guard.ipynb`** | **Act 3** | Gemini 3.5 Flash grey-zone adjudication, prompt-injection defense, and Pass-2 transitive contradiction pruning |
 | **`05_semantic_graph_governance_and_roi.ipynb`** | **Act 4 & 5** | Field survivorship, intersection consent (Privacy Act 1988), `GRAPH_EXPAND` semantic analytics, and measured cost |""",
         ),
         code_cell("nb01-setup", COMMON_SETUP_CODE, stdout=COMMON_SETUP_STDOUT, execution_count=1),
@@ -238,11 +238,11 @@ It combines two complementary breakthroughs inside a single SQL-native warehouse
             "nb01-sec1-md",
             """## 1 · The Headline Benchmark: 3 Resolution Methods on the Same 20,000 Profiles
 
-Before following a single customer, let's inspect the corpus-wide benchmark from `cdp.v_scorecard` and `cdp.resolution_runs`. Every method runs over the exact same **20,000 source records** (`13,925` true people across 7 source systems: `CRM`, `LOYALTY`, `ECOM`, `SUPPORT`, `CALL`, `POS`, `ENRICH`):
+Before following a single customer, let's inspect the corpus-wide benchmark from `cdp.v_scorecard` and `cdp.resolution_runs`. Every method runs over the exact same **20,000 source records** (`8,000` true people across 7 source systems: `CRM`, `LOYALTY`, `ECOM`, `SUPPORT`, `CALL`, `POS`, `ENRICH`):
 
 1. **`baseline_cc` (Naive Connected Components):** Any shared identifier links two profiles. Seven store-kiosk and contact-centre hub identifiers (`degree = 419..575`) collapse **5,195 distinct customers into a single giant hairball**, driving precision down to **`0.06%`** (`13,488,214` false-positive pairs).
 2. **`weighted_cc` (IDF-Weighted Graph Projection Only):** Drops promiscuous hubs (`degree > 25`) and requires cumulative shared-identifier rarity `weight >= 7.0`. Eliminates the hairball (`95.93%` precision, `321` FPs), but over-merges households sharing a landline/email (`100` FPs) and stale recycled identifiers (`38` FPs), while missing fuzzy semantic matches (`40.30%` recall).
-3. **`composable_cdp` (2-Hop Graph + Hybrid Search + Gemini 2.5 Flash + Pass-2 Contradiction Guard):** Combines 2-hop graph rarity with hybrid lexical/vector retrieval, Gemini 2.5 Flash grey-zone adjudication, and Pass-2 transitive contradiction pruning. Achieves **`99.46%` pairwise precision (`45` FPs total vs `321` in `weighted_cc`)**, **`44.07%` recall (`8,274` TPs vs `7,566` in `weighted_cc`)**, **`0.6107` F1**, and **zero hairballs**.""",
+3. **`composable_cdp` (2-Hop Graph + Hybrid Search + Gemini 3.5 Flash + Pass-2 Contradiction Guard):** Combines 2-hop graph rarity with hybrid lexical/vector retrieval, Gemini 3.5 Flash grey-zone adjudication, and Pass-2 transitive contradiction pruning. With every grey-zone pair judged, it reaches **`99.16%` pairwise precision (`74` FPs total vs `321` in `weighted_cc`)**, **`46.77%` recall (`8,782` TPs vs `7,566` in `weighted_cc`)**, **`0.6356` F1**, and **zero hairballs**. Recall is the honest weak spot: more than half of true pairs are still missed, and that is a deliberate bias toward under-merging (a missed match costs a duplicate mailing; a false merge is a privacy incident).""",
         ),
         code_cell(
             "nb01-runs-sql",
@@ -275,7 +275,7 @@ END""",
                     [
                         ["baseline_cc", 0.0, 20000, 11049, 5195, 1, 5195],
                         ["weighted_cc", 7.0, 20000, 14091, 5, 0, 0],
-                        ["composable_cdp", 0.92, 20000, 13867, 9, 0, 0],
+                        ["composable_cdp", 0.92, 20000, 13566, 9, 0, 0],
                     ],
                     caption="Graph Component Topology by Resolution Method (cdp.resolution_runs)",
                 )
@@ -308,7 +308,7 @@ ORDER BY
                     [
                         ["ALL", "baseline_cc", 8064, 13488214, 10710, 0.0006, 0.4295, 0.0012],
                         ["ALL", "weighted_cc", 7566, 321, 11208, 0.9593, 0.4030, 0.5675],
-                        ["ALL", "composable_cdp", 8274, 45, 10500, 0.9946, 0.4407, 0.6107],
+                        ["ALL", "composable_cdp", 8782, 74, 9994, 0.9916, 0.4677, 0.6356],
                         ["hub", "baseline_cc", 2423, 13488039, 3294, 0.0002, 0.4238, 0.0004],
                         ["hub", "weighted_cc", 2079, 64, 3638, 0.9701, 0.3637, 0.5290],
                         ["hub", "composable_cdp", 2274, 12, 3443, 0.9948, 0.3978, 0.5683],
@@ -332,7 +332,7 @@ ORDER BY
             r"""## 2 · Pick One Customer and Follow Them End-to-End
 
 Now let's follow **one resolved person** through every stage of the pipeline:
-1. Pick a customer with records across **5 different source systems**, including an **unstructured support ticket**, where the **Gemini 2.5 Flash adjudicator** had to rule on grey-zone pairs.
+1. Pick a customer with records across **5 different source systems**, including an **unstructured support ticket**, where the **Gemini 3.5 Flash adjudicator** had to rule on grey-zone pairs.
 2. Inspect their **raw, uncleaned records** (`party_records`).
 3. See what **Stage 20 Normalisation** fixes (`0489 909 604` $\rightarrow$ `+61489909604`) and what it cannot fix (`abyb noland`, truncated postcode `42`, transposed postcode `4202`).
 4. Trace how **Hybrid Search + 2-Hop Graph Rarity** scores every candidate pair (`pair_tiers`).
@@ -369,10 +369,11 @@ SELECT s.person_id,
 FROM stats AS s
 LEFT JOIN grey AS g USING (person_id)
 LEFT JOIN `cdp.golden_person` AS gp USING (person_id)
-WHERE s.n_sources >= 3 AND s.n_unstructured >= 1 AND s.n_records BETWEEN 4 AND 8
-ORDER BY IF(IFNULL(g.n_grey, 0) > 0, 1, 0) DESC,
-         s.n_sources DESC, s.n_unstructured DESC, s.n_records DESC, s.person_id
-LIMIT 1""",
+-- Pinned to the person who owns CRM record CRM-5d268dd4 (Abby Noland) so the
+-- narrative below stays stable across re-runs. She was originally picked by
+-- the criteria kept here: >= 3 sources, >= 1 unstructured record, 4-8 records.
+WHERE s.person_id = (SELECT person_id FROM members WHERE record_id = 'CRM-5d268dd4')
+  AND s.n_sources >= 3 AND s.n_unstructured >= 1 AND s.n_records BETWEEN 4 AND 8""",
             *(
                 df_to_output(
                     [
@@ -473,7 +474,7 @@ Below are the candidate pairs evaluated inside Abby Noland's cluster (`cdp.pair_
 - Notice `idf_weight_sum` and `min_shared_degree` from the **Bipartite Identifier Graph (`40_block.sql`)**:
   - `CRM-5d268dd4 ~ LOY-ac677db5` shares a unique phone (`degree = 2`, `idf_weight = 9.21`) and exact DOB (`1955-07-27`). Even though `LOY-ac677db5` spelled her name `abyb noland`, the pipeline auto-matches them (`combined_score = 1.000`).
   - `LOY-ac677db5 ~ POS-1b222aed` shares loyalty account `ACC-8504064` (`degree = 2`, `idf_weight = 9.21`) with compatible forename (`ABYB` vs `A`), linking the sparse POS stub (`AUTO_MATCH`).
-  - `CRM-5d268dd4 ~ SUP-da73f0e1` and `ENR-31fd9a08 ~ SUP-da73f0e1` link the unstructured support ticket via shared email (`degree = 3`, `idf_weight = 8.80`), routing through the **`GREY_ZONE`** where **Gemini 2.5 Flash** confirms the match.""",
+  - `CRM-5d268dd4 ~ SUP-da73f0e1` and `ENR-31fd9a08 ~ SUP-da73f0e1` link the unstructured support ticket via shared email (`degree = 3`, `idf_weight = 8.80`), routing through the **`GREY_ZONE`** where **Gemini 3.5 Flash** confirms the match.""",
         ),
         code_cell(
             "nb01-subject-pairs",
@@ -606,15 +607,15 @@ FROM `cdp.v_scorecard`""",
                     [
                         [
                             20000,
-                            13925,
-                            14016,
-                            23,
-                            0.9946,
-                            0.4407,
-                            0.6107,
-                            8274,
-                            45,
-                            10500,
+                            8000,
+                            13566,
+                            20,
+                            0.9916,
+                            0.4677,
+                            0.6356,
+                            8782,
+                            74,
+                            9994,
                             41769,
                             0.39,
                         ]
@@ -749,7 +750,7 @@ LIMIT 12""",
             "nb02-sec3-md",
             r"""## 3 · Querying the Native BigQuery Property Graph (`cdp.cdp_identity_graph`) with ISO GQL
 
-Stage 70 (`70_graph.sql`) declares `cdp.cdp_identity_graph` as a native BigQuery `PROPERTY GRAPH` over both the **pre-resolution Bipartite Identifier Graph** (`SourceRecord` $\xrightarrow{\text{HAS\_IDENTIFIER}}$ `IdentifierNode`) and the **post-resolution Entity Graph** (`SourceRecord` $\xrightarrow{\text{RESOLVES\_TO}}$ `Person` $\xrightarrow{\text{MEMBER\_OF}}$ `Household`).
+Stage 70 (`70_graph.sql`) declares `cdp.cdp_identity_graph` as a native BigQuery `PROPERTY GRAPH` over both the **pre-resolution Bipartite Identifier Graph** (`SourceRecord` $\xrightarrow{\text{HAS\_IDENTIFIER}}$ `Identifier`) and the **post-resolution Entity Graph** (`SourceRecord` $\xrightarrow{\text{RESOLVES\_TO}}$ `Person` $\xrightarrow{\text{MEMBER\_OF}}$ `Household`).
 
 We can traverse `cdp.cdp_identity_graph` directly using ISO/IEC 39075 **GQL (`GRAPH_TABLE`)** to inspect records attached to a promiscuous kiosk hub versus a household email.""",
         ),
@@ -765,7 +766,7 @@ SELECT
   STRING_AGG( raw_name, ', ' ORDER BY record_id LIMIT 5 ) AS sample_names
 FROM GRAPH_TABLE(
   `cdp.cdp_identity_graph`
-  MATCH (r:SourceRecord)-[h:HAS_IDENTIFIER]->(i:IdentifierNode)
+  MATCH (r:SourceRecord)-[h:HAS_IDENTIFIER]->(i:Identifier)
   WHERE i.identifier_id IN ('EM:kiosk.mel@store-checkout.com.au', 'EM:thegills@gmail.com')
   COLUMNS (
     i.identifier_id AS identifier_id,
@@ -841,7 +842,7 @@ A Graph Neural Network (like a 2-layer GraphSAGE link predictor) aggregates feat
 
 Because our bipartite graph has a known schema (`Profile <-> Identifier`), we compute **the exact 1-hop and 2-hop sufficient statistics deterministically in BigQuery SQL (`40_block.sql` + `50_candidates.sql`)**, and combine them with **BigQuery Hybrid Search (`AI.SEARCH` + `VECTOR_SEARCH` + Reciprocal Rank Fusion)**:
 - **Zero GPU training pipelines or stale node embeddings** when new profiles arrive.
-- **100% explainable features** (`idf_weight_sum`, `unshared_email_both`, `forename_conflict`) passed directly into the rule scorer and Gemini 2.5 Flash prompt.
+- **100% explainable features** (`idf_weight_sum`, `unshared_email_both`, `forename_conflict`) passed directly into the rule scorer and Gemini 3.5 Flash prompt.
 - **Higher recall on disconnected graph components:** A GNN link predictor can only score pairs that already share a path in the identifier graph. BigQuery `VECTOR_SEARCH` retrieves transliterated names, typos, and unstructured call transcripts even when **zero exact identifiers match (`SEMANTIC_ONLY`)**.""",
         ),
         code_cell("nb03-setup", COMMON_SETUP_CODE, stdout=COMMON_SETUP_STDOUT, execution_count=1),
@@ -943,7 +944,7 @@ ORDER BY neighbourhood_pattern""",
 By combining the 1-hop/2-hop graph features with RRF hybrid search scores, Stage 50 (`50_candidates.sql`) routes the **10,773,842** candidate pairs into three tiers:
 - **`AUTO_MATCH` (`4,345` pairs, `0.04%`):** High-rarity corroborating identifiers with zero 2-hop conflicts — merged immediately with **zero LLM cost**.
 - **`REJECT` (`10,727,728` pairs, `99.57%`):** Filtered out deterministically with **zero LLM cost**.
-- **`GREY_ZONE` (`41,769` pairs, `0.39%`):** Ambiguous pairs where evidence points both ways — routed to **Gemini 2.5 Flash** in Stage 60.""",
+- **`GREY_ZONE` (`41,769` pairs, `0.39%`):** Ambiguous pairs where evidence points both ways — routed to **Gemini 3.5 Flash** in Stage 60.""",
         ),
         code_cell(
             "nb03-funnel",
@@ -994,9 +995,9 @@ def build_nb04() -> dict:
     cells = [
         md_cell(
             "nb04-title",
-            r"""# Act 3 · Gemini 2.5 Flash Adjudicator, Prompt-Injection Defense & Pass-2 Contradiction Pruning
+            r"""# Act 3 · Gemini 3.5 Flash Adjudicator, Prompt-Injection Defense & Pass-2 Contradiction Pruning
 
-Only the **`0.39%` Grey-Zone pairs** (`41,769` pairs out of `10.77M`) are sent to **Gemini 2.5 Flash** via `AI.GENERATE` in Stage 60 (`60_adjudicate.sql`).
+Only the **`0.39%` Grey-Zone pairs** (`41,769` pairs out of `10.77M`) are sent to **Gemini 3.5 Flash** via `AI.GENERATE` in Stage 60 (`60_adjudicate.sql`).
 
 ### Three Layers of Safety in Stages 60 & 70
 1. **Structured Schema + 2-Hop Graph Context (`60_adjudicate.sql`):** Gemini receives the structured 1-hop rarity (`idf_weight_sum`, `min_shared_degree`) and 2-hop neighbourhood flags (`unshared_email_both`, `unshared_phone_both`) and must return a typed `STRUCT<verdict STRING, confidence FLOAT64, decisive_evidence STRING, contradiction STRING, rationale STRING, injection_detected BOOL>`.
@@ -1006,7 +1007,7 @@ Only the **`0.39%` Grey-Zone pairs** (`41,769` pairs out of `10.77M`) are sent t
         code_cell("nb04-setup", COMMON_SETUP_CODE, stdout=COMMON_SETUP_STDOUT, execution_count=1),
         md_cell(
             "nb04-sec1-md",
-            """## 1 · Gemini 2.5 Flash Adjudication Summary & Sample Decisions (`cdp.v_adjudication_summary`)
+            """## 1 · Gemini 3.5 Flash Adjudication Summary & Sample Decisions (`cdp.v_adjudication_summary`)
 
 Let's inspect the distribution of Gemini verdicts in `cdp.v_adjudication_summary` and examine sample `LINK` and `NO_LINK` rationales from `cdp.match_decisions`.""",
         ),
@@ -1039,7 +1040,7 @@ ORDER BY pairs DESC""",
                         ["MATCH", 4917, 0.925, 4317, 4098, 1, 0],
                         ["UNCERTAIN", 3562, 0.717, 1676, 928, 0, 0],
                     ],
-                    caption="Gemini 2.5 Flash Adjudication Ledger Summary (cdp.v_adjudication_summary)",
+                    caption="Gemini 3.5 Flash Adjudication Ledger Summary (cdp.v_adjudication_summary)",
                 )
             ),
             execution_count=2,
@@ -1081,7 +1082,7 @@ LIMIT 6""",
                         ["CALL-a7204b84", "ENR-0e41f8a6", "ROWAN MEADOWS", "ROWAN YATES", "SEMANTIC_ONLY", "NO_LINK", 1.00, "The records describe different people with different surnames residing at entirely different addresses, sharing only a common first name."],
                         ["CALL-e2ec316d", "SUP-cbbd1b39", "MARK REESE", "MARK BRANCH", "SEMANTIC_ONLY", "NO_LINK", 1.00, "The records describe different people with different surnames living in different cities, sharing only a common first name."],
                     ],
-                    caption="Sample Gemini 2.5 Flash Grey-Zone Decisions (cdp.match_decisions)",
+                    caption="Sample Gemini 3.5 Flash Grey-Zone Decisions (cdp.match_decisions)",
                 )
             ),
             execution_count=3,
@@ -1090,7 +1091,9 @@ LIMIT 6""",
             "nb04-sec2-md",
             """## 2 · Adversarial Prompt-Injection Audit (`cdp.v_adjudications_current`)
 
-What happens when a support ticket or web form contains an adversarial prompt injection attempting to force an unauthorized identity merge? Let's inspect pairs involving support tickets where Stage 20 (`stg_support_entities`) detected a prompt-injection payload.""",
+What happens when a support ticket or web form contains an adversarial prompt injection attempting to force an unauthorized identity merge? Let's inspect pairs involving support tickets where Stage 20 (`stg_support_entities`) detected a prompt-injection payload.
+
+On the current run, 20 grey-zone pairs involve an injected ticket: 11 `NO_MATCH`, 7 `UNCERTAIN`, 2 `MATCH`. Both `MATCH` verdicts are **correct against ground truth** — the ticket's author genuinely is that customer — so the injection produced **no false merge**. Note that the model's own `injection_detected` flag is not reliable on its own (it fired on only one of those two); the defence is the prompt's "untrusted data" rule plus Stage 20 flagging, not the flag.""",
         ),
         code_cell(
             "nb04-injection",
@@ -1100,13 +1103,14 @@ SELECT
   j.record_id_b,
   j.verdict,
   ROUND(j.confidence, 2) AS confidence,
-  e.evidence_note,
+  j.injection_detected,
   j.rationale
 FROM `cdp.v_adjudications_current` AS j
 JOIN `cdp.stg_support_entities` AS e
   ON e.record_id IN (j.record_id_a, j.record_id_b)
-WHERE LOWER(e.evidence_note) LIKE '%injection%' AND j.rationale IS NOT NULL
-LIMIT 4""",
+WHERE e.injection_attempt AND j.rationale IS NOT NULL
+ORDER BY j.verdict = 'MATCH' DESC, j.confidence DESC
+LIMIT 6""",
             *(
                 df_to_output(
                     [
@@ -1123,7 +1127,7 @@ LIMIT 4""",
                         ["POS-e3186e6b", "SUP-b3278978", "UNCERTAIN", 0.30, "Body contains a prompt-injection attempt; content treated as untrusted data.", "The records share a surname and a compatible first initial, but with no other supporting identifiers such as email, phone, or address, the evidence is insufficient to confidently link them."],
                         ["POS-8d386065", "SUP-37a7e8e5", "NO_MATCH", 0.95, "Body contains a prompt-injection attempt; content treated as untrusted data.", "The records represent different people sharing a surname, as 'L Warren' and 'Stephen Warren' have conflicting first names/initials and no other matching identifiers."],
                     ],
-                    caption="Prompt-Injection Defense Audit: Zero False Merges on Adversarial Tickets",
+                    caption="Prompt-Injection Defense Audit: Adjudicator Verdicts on Pairs Involving Injected Tickets",
                 )
             ),
             execution_count=4,
@@ -1184,57 +1188,52 @@ LIMIT 6""",
         ),
         md_cell(
             "nb04-sec4-md",
-            """## 4 · Scorecard Across All 16 Planted Hard-Case Archetypes (`cdp.v_case_results`)
+            """## 4 · Scorecard Across the Planted Hard Cases (`cdp.v_case_results`)
 
-Because of 2-Hop Graph Rarity + Hybrid Search + Gemini Adjudication + Pass-2 Contradiction Pruning, **every single one of the 16 planted hard-case archetypes in `cdp.v_case_results` achieves `FP = 0` (`100.0%` precision)**.""",
+The generator plants **15 hard-case types** plus a `SINGLETON` control (people who should never be merged with anyone). This is the honest scorecard, not the highlight reel:
+
+- Only **2 of the 15** hard-case types pass outright (`CONSENT_CONFLICT`, `NAME_ORDER_TRAP`). The rest still miss some true matches — see `recall` and `diagnosis`.
+- **4 false merges** remain, all introduced by the LLM adjudicator: 2 in `UNSTRUCTURED_ONLY` (a caller ringing about a partner's account) and 2 on `SINGLETON` control records. Every other type has `fp = 0`.
+- Over-merging is the serious direction of failure (a privacy incident), so those two rows are the ones to tighten first.""",
         ),
         code_cell(
             "nb04-case-results",
             """%%bigquery df_cases
 SELECT
   case_type,
-  intent,
-  planted_people,
-  planted_records,
+  expected_outcome,
+  target_instances,
+  pairs_evaluated,
   tp,
   fp,
   fn,
   precision,
-  recall
+  recall,
+  passed,
+  diagnosis
 FROM `cdp.v_case_results`
-ORDER BY intent, recall DESC, case_type""",
+ORDER BY passed DESC, fp DESC, recall DESC, case_type""",
             *(
                 df_to_output(
                     [
                         "case_type",
-                        "intent",
-                        "planted_people",
-                        "planted_records",
+                        "expected_outcome",
+                        "target_instances",
+                        "pairs_evaluated",
                         "tp",
                         "fp",
                         "fn",
                         "precision",
                         "recall",
+                        "passed",
                     ],
                     [
-                        ["CONSENT_CONFLICT", "POSITIVE (should merge)", 22, 66, 66, 0, 0, 1.000, 1.000],
-                        ["NAME_ORDER_TRAP", "POSITIVE (should merge)", 44, 88, 44, 0, 0, 1.000, 1.000],
-                        ["NAME_ORDER", "POSITIVE (should merge)", 22, 66, 62, 0, 4, 1.000, 0.939],
-                        ["SHARED_EMAIL", "POSITIVE (should merge)", 44, 132, 82, 0, 6, 1.000, 0.932],
-                        ["RISK_FLAG", "POSITIVE (should merge)", 22, 66, 60, 0, 6, 1.000, 0.909],
-                        ["DIACRITIC_VARIANT", "POSITIVE (should merge)", 22, 66, 57, 0, 9, 1.000, 0.864],
-                        ["SOLE_TRADER", "POSITIVE (should merge)", 22, 66, 49, 0, 17, 1.000, 0.742],
-                        ["ACCOUNT_ONLY", "POSITIVE (should merge)", 22, 44, 16, 0, 6, 1.000, 0.727],
-                        ["SIBLING_TRAP", "POSITIVE (should merge)", 88, 220, 68, 0, 28, 1.000, 0.708],
-                        ["TRANSLITERATION", "POSITIVE (should merge)", 22, 66, 45, 0, 21, 1.000, 0.682],
-                        ["UNSTRUCTURED_ONLY", "POSITIVE (should merge)", 22, 44, 15, 0, 7, 1.000, 0.682],
-                        ["NICKNAME_DRIFT", "POSITIVE (should merge)", 22, 66, 43, 0, 23, 1.000, 0.652],
-                        ["SURNAME_CHANGE", "POSITIVE (should merge)", 22, 66, 39, 0, 27, 1.000, 0.591],
-                        ["MOVER", "POSITIVE (should merge)", 22, 66, 33, 0, 33, 1.000, 0.500],
-                        ["CALL_ON_BEHALF", "NEGATIVE (must not merge)", 44, 66, 22, 0, 0, 1.000, 1.000],
-                        ["PROMPT_INJECTION", "NEGATIVE (must not merge)", 22, 22, 0, 0, 0, None, None],
+                        ["CONSENT_CONFLICT", "MERGE", 22, 66, 66, 0, 0, 1.0, 1.0, True],
+                        ["NAME_ORDER_TRAP", "DO_NOT_MERGE", 22, 44, 44, 0, 0, 1.0, 1.0, True],
+                        ["UNSTRUCTURED_ONLY", "DO_NOT_MERGE", 22, 46, 30, 2, 14, 0.938, 0.682, False],
+                        ["SINGLETON", "DO_NOT_MERGE", 22, 2, 0, 2, 0, 0.0, None, False],
                     ],
-                    caption="Zero False Positives Across All 16 Planted Hard-Case Archetypes (cdp.v_case_results)",
+                    caption="Hard-Case Scorecard: 2 of 15 Types Pass Outright, 4 False Merges in 2 Types (cdp.v_case_results)",
                 )
             ),
             execution_count=6,
@@ -1402,8 +1401,8 @@ LIMIT 5""",
             """## 3 · Downstream Activation Lift & Household Direct-Mail Savings (`90_downstream.sql`)
 
 Let's inspect the two commercial ROI views built in Stage 90:
-1. **`cdp.v_activation_before_after`:** Connecting POS and ECOM transactions across all resolved records increases attributed customer reach from **1,658 loyalty cards (`$162,366` spend)** to **5,316 resolved customers (`$479,989` spend)** — nearly **3x attributed revenue**.
-2. **`cdp.v_household_waste`:** Grouping resolved people by `golden_household` (`address_key`) eliminates **13.33% of postal direct mailings** (`115` duplicate catalogue mailings avoided across `748` mailable households, including `31` multi-surname households).""",
+1. **`cdp.v_activation_before_after`:** Connecting POS and ECOM transactions across all resolved records increases attributed customer reach from **1,658 loyalty cards (`$162,366` spend)** to **5,293 resolved customers (`$479,989` spend)** — nearly **3x attributed revenue**.
+2. **`cdp.v_household_waste`:** Grouping resolved people by `golden_household` (`address_key`) eliminates **12.85% of postal direct mailings** (`111` duplicate catalogue mailings avoided across `753` mailable households, including `30` multi-surname households).""",
         ),
         code_cell(
             "nb05-activation",
@@ -1435,7 +1434,7 @@ SELECT * FROM `cdp.v_household_waste`""",
                         "multi_person_households",
                         "multi_surname_households",
                     ],
-                    [[748, 863, 115, 13.33, 104, 31]],
+                    [[753, 864, 111, 12.85, 100, 30]],
                     caption="Direct-Mail Catalogue Waste Eliminated by Household Resolution (cdp.v_household_waste)",
                 )
             ),
@@ -1445,7 +1444,13 @@ SELECT * FROM `cdp.v_household_waste`""",
             "nb05-sec4-md",
             """## 4 · Measured AI & Compute Cost Model (`cdp.v_cost_model` & `cdp.v_cost_compute`)
 
-Because 99.61% of candidate pairs are settled deterministically by the 2-Hop Graph + Hybrid Search tiering rules, the **entire 20,000-record AI pipeline costs less than `$0.09` in Gemini/embedding calls** (`$0.0043` per 1,000 records, or **`~$63.80` per full rebuild at 15M records**).""",
+99.61% of candidate pairs are settled deterministically by the 2-Hop Graph + Hybrid Search tiering rules. Only the `0.39%` grey zone (41,769 pairs) reaches Gemini — but at ~1,570 input + ~90 output tokens per judgement, **that is where almost all the money goes**.
+
+`cdp.v_cost_model` prices **one clean rebuild** of the 20,000-record corpus at **`$131.59`** of model spend (`$131.51` adjudication; extraction + embedding ≈ `$0.09`), i.e. **`$6.58` per 1,000 records** and a linear floor of **`~$98.7k` per full rebuild at 15M records**. BigQuery compute (`cdp.v_cost_compute`) is extra.
+
+> **How this is measured:** the adjudicator's token usage is now captured from `AI.GENERATE`'s `usage_metadata`. Ledger rows written before that fix are costed at the measured per-call average of a 300-call calibration sample, so the `basis` column reads `ESTIMATED`. Cumulative adjudication spend across all iterations of this demo (re-runs included) is reported separately as `usd_adjudication_ledger_to_date`.
+>
+> **What this means at scale:** a full nightly rebuild at 15M records is not how you would run this. In steady state only *new or changed* records go through the grey zone, and tightening `tau_low` / `tau_high` trades recall for cost (`cdp.v_cost_sensitivity`).""",
         ),
         code_cell(
             "nb05-cost-model",
@@ -1461,7 +1466,8 @@ SELECT
   usd_model_total,
   usd_model_per_1k_records,
   target_records,
-  usd_model_at_target_per_rebuild
+  usd_model_at_target_per_rebuild,
+  usd_adjudication_ledger_to_date
 FROM `cdp.v_cost_model`""",
             *(
                 df_to_output(
@@ -1478,7 +1484,7 @@ FROM `cdp.v_cost_model`""",
                         "usd_at_15m_rebuild",
                     ],
                     [
-                        [20000, 14016, 105883, 409125, 0.0367, 0.0483, 0.0851, 0.0043, 15000000, 63.80]
+                        [20000, 13566, 64147, 69712806, 0.0367, 0.0483, 131.5914, 6.5796, 15000000, 98693.56]
                     ],
                     caption="Measured AI Token & Model Cost Summary (cdp.v_cost_model)",
                 )
@@ -1512,11 +1518,11 @@ Run the cell below in BigQuery Studio to render the star-burst topology around `
             "bqs1-graph-hub",
             """%%bigquery --graph
 GRAPH `all-things-cdp.cdp.cdp_identity_graph`
-MATCH (r:SourceRecord)-[h:HAS_IDENTIFIER]->(i:IdentifierNode)
+MATCH (r:SourceRecord)-[h:HAS_IDENTIFIER]->(i:Identifier)
 WHERE i.identifier_id IN ('EM:kiosk.mel@store-checkout.com.au', 'DV:KIOSK-TERMINAL-AU-01')
-LIMIT 60
-RETURN r, h, i""",
-            stdout="Rendered 60 SourceRecord -[HAS_IDENTIFIER]-> IdentifierNode edges in BigQuery Studio Graph Viewer (EM:kiosk.mel@store-checkout.com.au degree=559, DV:KIOSK-TERMINAL-AU-01 degree=547).",
+RETURN TO_JSON(r) AS r, TO_JSON(h) AS h, TO_JSON(i) AS i
+LIMIT 60""",
+            stdout="Rendered 60 SourceRecord -[HAS_IDENTIFIER]-> Identifier edges in BigQuery Studio Graph Viewer (EM:kiosk.mel@store-checkout.com.au degree=559, DV:KIOSK-TERMINAL-AU-01 degree=547).",
             execution_count=1,
         ),
         md_cell(
@@ -1525,7 +1531,7 @@ RETURN r, h, i""",
 
 Now let's inspect `EM:thegills@gmail.com` (`degree = 4`, `is_promiscuous = FALSE`).
 In the interactive graph below, trace:
-- `SourceRecord` $\xrightarrow{\text{HAS\_IDENTIFIER}}$ `IdentifierNode` (`EM:thegills@gmail.com`)
+- `SourceRecord` $\xrightarrow{\text{HAS\_IDENTIFIER}}$ `Identifier` (`EM:thegills@gmail.com`)
 - `SourceRecord` $\xrightarrow{\text{RESOLVES\_TO}}$ `Person` $\xrightarrow{\text{MEMBER\_OF}}$ `Household`
 
 Notice how **Composable CDP** keeps the three distinct family members (`Harpreet Gill`, `Jaspreet Gill`, `Gurpreet Gill`) as **separate `Person` nodes**, while linking them all to the same `Household` node!""",
@@ -1534,9 +1540,9 @@ Notice how **Composable CDP** keeps the three distinct family members (`Harpreet
             "bqs1-graph-household",
             """%%bigquery --graph
 GRAPH `all-things-cdp.cdp.cdp_identity_graph`
-MATCH (i:IdentifierNode)<-[h:HAS_IDENTIFIER]-(r:SourceRecord)-[res:RESOLVES_TO]->(p:Person)-[m:MEMBER_OF]->(hh:Household)
+MATCH (i:Identifier)<-[h:HAS_IDENTIFIER]-(r:SourceRecord)-[res:RESOLVES_TO]->(p:Person)-[m:MEMBER_OF]->(hh:Household)
 WHERE i.identifier_id IN ('EM:thegills@gmail.com', 'EM:themorriss@bigpond.com', 'EM:thekramers@gmail.com')
-RETURN i, h, r, res, p, m, hh""",
+RETURN TO_JSON(i) AS i, TO_JSON(h) AS h, TO_JSON(r) AS r, TO_JSON(res) AS res, TO_JSON(p) AS p, TO_JSON(m) AS m, TO_JSON(hh) AS hh""",
             stdout="Rendered 12 SourceRecord nodes across 3 shared household emails resolving into distinct Person nodes linked to shared Household nodes.",
             execution_count=2,
         ),
@@ -1551,7 +1557,8 @@ Stage 20 (`20_normalise.sql`) uses `AI.GENERATE` to extract family relationships
             """%%bigquery --graph
 GRAPH `all-things-cdp.cdp.cdp_identity_graph`
 MATCH (p1:Person)-[rel:RELATED_TO]->(p2:Person)
-RETURN p1, rel, p2""",
+RETURN TO_JSON(p1) AS p1, TO_JSON(rel) AS rel, TO_JSON(p2) AS p2
+LIMIT 100""",
             stdout="Rendered 6 Person -[RELATED_TO]-> Person edges extracted from unstructured call transcripts (husband/wife relationships).",
             execution_count=3,
         ),
@@ -1577,15 +1584,15 @@ def build_bq_studio_act2() -> dict:
 
 Run the cell below in BigQuery Studio to render the complete multi-hop Customer 360 subgraph around `PER-1cdfdb9f52ddb25a` (`Abby Noland`):
 - **5 `SourceRecord` nodes** (`CRM-5d268dd4`, `LOY-ac677db5`, `SUP-da73f0e1`, `POS-1b222aed`, `ENR-31fd9a08`)
-- Their shared **`IdentifierNode`**, **`Email`**, **`Phone`**, **`Account`**, **`Address`**, and **`Household`** nodes.""",
+- Their shared **`Identifier`**, **`Email`**, **`Phone`**, **`Account`**, **`Address`**, and **`Household`** nodes.""",
         ),
         code_cell(
             "bqs2-graph-customer360",
             """%%bigquery --graph
 GRAPH `all-things-cdp.cdp.cdp_identity_graph`
-MATCH (i:IdentifierNode)<-[hi:HAS_IDENTIFIER]-(r:SourceRecord)-[res:RESOLVES_TO]->(p:Person)-[la:LIVES_AT]->(a:Address)
+MATCH (i:Identifier)<-[hi:HAS_IDENTIFIER]-(r:SourceRecord)-[res:RESOLVES_TO]->(p:Person)-[la:LIVES_AT]->(a:Address)
 WHERE p.person_id = 'PER-1cdfdb9f52ddb25a'
-RETURN i, hi, r, res, p, la, a""",
+RETURN TO_JSON(i) AS i, TO_JSON(hi) AS hi, TO_JSON(r) AS r, TO_JSON(res) AS res, TO_JSON(p) AS p, TO_JSON(la) AS la, TO_JSON(a) AS a""",
             stdout="Rendered Customer 360 subgraph for PER-1cdfdb9f52ddb25a (Abby Noland: 5 SourceRecords across CRM, LOYALTY, SUPPORT, POS, ENRICH).",
             execution_count=1,
         ),
@@ -1671,7 +1678,7 @@ ORDER BY
                     [
                         ["ALL", "baseline_cc", 8064, 13488214, 10710, 0.0006, 0.4295, 0.0012],
                         ["ALL", "weighted_cc", 7566, 321, 11208, 0.9593, 0.4030, 0.5675],
-                        ["ALL", "composable_cdp", 8274, 45, 10500, 0.9946, 0.4407, 0.6107],
+                        ["ALL", "composable_cdp", 8782, 74, 9994, 0.9916, 0.4677, 0.6356],
                         ["hub", "baseline_cc", 2423, 13488039, 3294, 0.0002, 0.4238, 0.0004],
                         ["hub", "weighted_cc", 2079, 64, 3638, 0.9701, 0.3637, 0.5290],
                         ["hub", "composable_cdp", 2274, 12, 3443, 0.9948, 0.3978, 0.5683],
@@ -1696,7 +1703,7 @@ ORDER BY
 
 README_CONTENT = """# Composable CDP · 5-Act Notebook Suite & BigQuery Studio Visual Editions
 
-Every notebook in this directory is **pre-executed against `all-things-cdp.cdp`** (`20,000` source records, `13,925` true people, `16` planted hard-case archetypes) so tables and outputs render immediately in GitHub, VS Code, or Colab Enterprise.
+Every notebook in this directory is **pre-executed against `all-things-cdp.cdp`** (`20,000` source records, `8,000` true people, `15` planted hard-case types) so tables and outputs render immediately in GitHub, VS Code, or Colab Enterprise.
 
 ## 1 · Standard 5-Act Walkthrough Suite (`demo/notebooks/`)
 
@@ -1705,8 +1712,8 @@ Every notebook in this directory is **pre-executed against `all-things-cdp.cdp`*
 | [`01_identity_resolution_story.ipynb`](01_identity_resolution_story.ipynb) | **Executive Story** | 15-minute end-to-end narrative: 3-method benchmark (`baseline_cc` vs `weighted_cc` vs `composable_cdp`) + following **one customer (`Abby Noland`, `PER-1cdfdb9f52ddb25a`)** from 5 raw records to 1 golden person. |
 | [`02_graph_pathology_and_rarity.ipynb`](02_graph_pathology_and_rarity.ipynb) | **Act 1 · Graph Pathology & Rarity** | How 7 promiscuous store-kiosk/call-centre hubs (`degree = 419..575`) collapse 5,195 profiles into a single hairball (`0.06%` precision), and how Bipartite Identifier Graph IDF Rarity (`LN(1 + N / degree)`) breaks the hairball in pure SQL. |
 | [`03_hybrid_search_and_2hop_features.ipynb`](03_hybrid_search_and_2hop_features.ipynb) | **Act 2 · Hybrid Search + 2-Hop Features** | Why closed-form 1-hop/2-hop SQL graph features (`idf_weight_sum`, `unshared_email_both`, `unshared_phone_both`) + BigQuery Hybrid Search (`AI.SEARCH` / `VECTOR_SEARCH` + RRF) outperform standalone PyTorch GraphSAGE link predictors without GPU training pipelines. |
-| [`04_llm_adjudicator_and_contradiction_guard.ipynb`](04_llm_adjudicator_and_contradiction_guard.ipynb) | **Act 3 · Gemini Adjudication & Contradiction Guard** | How Gemini 2.5 Flash adjudicates the `0.39%` grey-zone pairs, blocks adversarial prompt injection, and works with Stage 70's **Pass-2 Transitive Contradiction Guard** to achieve **`0` false positives across all 16 planted hard-case archetypes**. |
-| [`05_semantic_graph_governance_and_roi.ipynb`](05_semantic_graph_governance_and_roi.ipynb) | **Act 4 & 5 · Semantic Graph, Consent & ROI** | Fan-out-free multi-hop aggregation via `FROM GRAPH_EXPAND("cdp.cdp_semantic_graph")` + `AGG()`, Australian Privacy Act 1988 Intersection Consent, `3x` attributed spend lift, `13.33%` direct-mail household waste reduction, and the `$0.085` measured AI cost model. |
+| [`04_llm_adjudicator_and_contradiction_guard.ipynb`](04_llm_adjudicator_and_contradiction_guard.ipynb) | **Act 3 · Gemini Adjudication & Contradiction Guard** | How Gemini 3.5 Flash adjudicates the `0.39%` grey-zone pairs, blocks adversarial prompt injection, and works with Stage 70's **Pass-2 Transitive Contradiction Guard** to hold false merges to **`4`** in the planted hard-case set (only 2 of the 15 types pass outright). |
+| [`05_semantic_graph_governance_and_roi.ipynb`](05_semantic_graph_governance_and_roi.ipynb) | **Act 4 & 5 · Semantic Graph, Consent & ROI** | Fan-out-free multi-hop aggregation via `FROM GRAPH_EXPAND("cdp.cdp_semantic_graph")` + `AGG()`, Australian Privacy Act 1988 Intersection Consent, `3x` attributed spend lift, `12.85%` direct-mail household waste reduction, and the cost model (`$6.58` of model spend per 1,000 records per rebuild). |
 
 ## 2 · BigQuery Studio Interactive Graph Editions (`demo/notebooks/bigquery_studio/`)
 
@@ -1717,11 +1724,14 @@ Open these two notebooks inside **BigQuery Studio** in the Google Cloud Console 
 
 ## 3 · Rebuilding the Notebooks Deterministically
 
-To regenerate all 7 notebooks:
+Two steps. The builder writes the notebook structure; the refresher re-runs every `%%bigquery` cell against live BigQuery and rewrites its output, so no figure in these notebooks is hand-typed:
 
 ```bash
 python3 demo/notebooks/builders/build_all.py
+demo/.venv-nb/bin/python demo/notebooks/builders/refresh_outputs.py
 ```
+
+`refresh_outputs.py` also writes `builders/live_snapshot.json` — the exact rows behind every table — so narrative figures can be checked against it.
 """
 
 

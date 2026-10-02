@@ -44,7 +44,7 @@ def build_knowledge_catalog_glossary(project: str, dataset: str) -> list[Glossar
             term="Composable ID (person_id / composable_wesid)",
             definition=(
                 "The resolved customer entity ID produced by Composable CDP "
-                "(2-Hop Bipartite Graph Rarity + Hybrid Search + Gemini 2.5 Flash "
+                "(2-Hop Bipartite Graph Rarity + Hybrid Search + Gemini 3.5 Flash "
                 "Adjudication + Pass-2 Contradiction Guard)."
             ),
             canonical_sql_expression="AGG(Profile_composable_wesid_count)",

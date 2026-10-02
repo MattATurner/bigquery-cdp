@@ -107,8 +107,20 @@ SELECT
   -- Nullable on purpose: not every model version populates usageMetadata,
   -- and a missing field must not fail the pipeline. Stage 96 detects the
   -- nulls and falls back to a character-based estimate, saying so.
-  SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.promptTokenCount')     AS INT64) AS input_tokens,
-  SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.candidatesTokenCount') AS INT64) AS output_tokens
+  -- BigQuery returns usage_metadata in snake_case; the camelCase path is kept
+  -- as a fallback for older response shapes. Thinking tokens are billed as
+  -- output, so they are added to output_tokens when the model reports them.
+  COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.prompt_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.promptTokenCount')    AS INT64)
+  ) AS input_tokens,
+  COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.candidates_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.candidatesTokenCount')    AS INT64)
+  ) + IFNULL(COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.thoughts_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.thoughtsTokenCount')    AS INT64)
+  ), 0) AS output_tokens
 FROM extracted;
 
 
@@ -215,8 +227,20 @@ SELECT
   -- row returns a bare STRING with no usage metadata attached, so its
   -- consumption cannot be measured here and is estimated in stage 96 from
   -- the input text length. That estimate is labelled as an estimate.
-  SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.promptTokenCount')     AS INT64) AS input_tokens,
-  SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.candidatesTokenCount') AS INT64) AS output_tokens
+  -- BigQuery returns usage_metadata in snake_case; the camelCase path is kept
+  -- as a fallback for older response shapes. Thinking tokens are billed as
+  -- output, so they are added to output_tokens when the model reports them.
+  COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.prompt_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.promptTokenCount')    AS INT64)
+  ) AS input_tokens,
+  COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.candidates_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.candidatesTokenCount')    AS INT64)
+  ) + IFNULL(COALESCE(
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usage_metadata.thoughts_token_count') AS INT64),
+    SAFE_CAST(JSON_VALUE(g.full_response, '$.usageMetadata.thoughtsTokenCount')    AS INT64)
+  ), 0) AS output_tokens
 FROM extracted;
 
 

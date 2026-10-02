@@ -46,7 +46,7 @@ STAGES: dict[str, tuple[str, str, list[str]]] = {
     "40_block": ("Block + Bipartite Graph", "Cuts the comparison space with blocking keys and builds the Bipartite Profile-Identifier Graph with closed-form IDF rarity weights.", ["v_blocking_funnel"]),
     "50_candidates": ("Candidates + 2-Hop Features", "Runs both retrieval legs, fuses them with reciprocal rank fusion, computes 1-hop/2-hop SQL graph features, and tiers each pair: auto-match, grey zone, or reject.",
                       ["v_candidate_funnel", "v_retrieval_legs", "v_retrieval_recall"]),
-    "60_adjudicate": ("Adjudicate", "Sends only grey-zone pairs to Gemini 2.5 Flash. This is "
+    "60_adjudicate": ("Adjudicate", "Sends only grey-zone pairs to Gemini 3.5 Flash. This is "
                       "the expensive stage, which is why the tiering above it "
                       "matters so much.", ["v_adjudication_summary"]),
     "70_graph": ("Graph + Property Graphs", "Resolves clusters across 3 methods (baseline_cc, weighted_cc, composable_cdp), runs the Pass-2 Contradiction Guard, and declares cdp_identity_graph & cdp_semantic_graph.", ["v_graph_summary", "v_cluster_sizes", "resolution_runs"]),
@@ -60,7 +60,7 @@ STAGES: dict[str, tuple[str, str, list[str]]] = {
                       "identifier risk, agent grounding and activation audiences.",
                       ["v_household_waste", "v_shared_identifiers",
                        "v_activation_before_after"]),
-    "95_scorecard": ("Scorecard", "Marks its own homework against ground truth across all 3 resolution methods and 16 planted hard-case archetypes.",
+    "95_scorecard": ("Scorecard", "Marks its own homework against ground truth across all 3 resolution methods and 15 planted hard-case types.",
                      ["v_scorecard", "v_method_comparison", "v_case_results", "v_failures"]),
     "96_cost_model": ("Cost model", "Measured token counts and bytes billed, "
                       "extrapolated to the customer's real volume.",

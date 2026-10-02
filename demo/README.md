@@ -17,11 +17,11 @@ committed anywhere in this repository — `setup.sh` asks.
 | 2 | Embeddings maintain themselves | `30_embed.sql` & `35_embed_finalise.sql` — `AI.EMBED` over `match_key` + `VECTOR INDEX` and `SEARCH INDEX` |
 | 3 | Bipartite graph rarity & 2-hop SQL features replace PyTorch GNNs | `40_block.sql` (§40e–40h) & `50_candidates.sql` — closed-form `idf_weight = LN(1 + N / degree)` + 2-hop divergence (`unshared_*_both`) |
 | 4 | Neither search leg is sufficient alone | `v_retrieval_legs` & `v_retrieval_recall` — what a semantic-only and a lexical-only architecture would each have missed, against truth |
-| 5 | An LLM is affordable if it only sees the hard cases | `v_scorecard.pct_of_pairs_using_an_llm` (`0.39%` of candidate pairs, `$0.085` total AI spend on 20k records) |
+| 5 | The LLM only sees the hard cases — and that is still where the money goes | `v_scorecard.pct_of_pairs_using_an_llm` (`0.39%` of candidate pairs reach the adjudicator); `v_cost_model` prices one clean rebuild at `$131.59` (`$6.58` per 1k records), estimated from a 300-call measured token sample — see Cost |
 | 6 | Transitive closure must be distrusted | `70_graph.sql` — Pass-2 Contradiction Guard severs initial-bridge sibling collisions (`suppressed_by_contradiction = TRUE`) |
 | 7 | Native Property Graphs + `GRAPH_EXPAND` eliminate join fan-out | `70_graph.sql` — `cdp.cdp_identity_graph` (ISO GQL / `%%bigquery --graph`) and `cdp.cdp_semantic_graph` (`MEASURE()` + `GRAPH_EXPAND` + `AGG()`) |
 | 8 | Merging people is not merging permissions | `85_consent.sql`, Scenario C — Australian Privacy Act 1988 Intersection Consent |
-| 9 | 3-method benchmark proves every layer's lift | `95_scorecard.sql` — `v_method_comparison` (`baseline_cc` `0.06%` prec / `1` hairball vs `weighted_cc` `95.93%` prec vs `composable_cdp` **`99.46%` prec / `44.07%` recall / `0` hairballs**) |
+| 9 | 3-method benchmark proves every layer's lift | `95_scorecard.sql` — `v_method_comparison` (`baseline_cc` `0.06%` prec / `1` hairball vs `weighted_cc` `95.93%` prec vs `composable_cdp` **`99.16%` prec / `46.77%` recall / `0` hairballs**) |
 
 ---
 
@@ -58,7 +58,7 @@ SELECT * FROM `PROJECT.DATASET.v_case_results` ORDER BY intent, recall DESC;
   - [`notebooks/01_identity_resolution_story.ipynb`](notebooks/01_identity_resolution_story.ipynb) — Executive 15-minute narrative + one customer (`Abby Noland`, `PER-1cdfdb9f52ddb25a`) end-to-end
   - [`notebooks/02_graph_pathology_and_rarity.ipynb`](notebooks/02_graph_pathology_and_rarity.ipynb) — Act 1: Bipartite Identifier Graph, Promiscuous Hubs & IDF Rarity
   - [`notebooks/03_hybrid_search_and_2hop_features.ipynb`](notebooks/03_hybrid_search_and_2hop_features.ipynb) — Act 2: Hybrid Search (`AI.SEARCH` + RRF) & 2-Hop SQL Graph Features (No GNN)
-  - [`notebooks/04_llm_adjudicator_and_contradiction_guard.ipynb`](notebooks/04_llm_adjudicator_and_contradiction_guard.ipynb) — Act 3: Gemini 2.5 Flash Adjudicator, Prompt-Injection Defense & Pass-2 Contradiction Pruning
+  - [`notebooks/04_llm_adjudicator_and_contradiction_guard.ipynb`](notebooks/04_llm_adjudicator_and_contradiction_guard.ipynb) — Act 3: Gemini 3.5 Flash Adjudicator, Prompt-Injection Defense & Pass-2 Contradiction Pruning
   - [`notebooks/05_semantic_graph_governance_and_roi.ipynb`](notebooks/05_semantic_graph_governance_and_roi.ipynb) — Act 4 & 5: `GRAPH_EXPAND` Semantic Graph, Intersection Consent, Activation ROI & Measured Cost Model
   - [`notebooks/bigquery_studio/`](notebooks/bigquery_studio/) — Self-contained `%%bigquery --graph` interactive visual notebooks for BigQuery Studio
 - **Conversational Analytics & ADK Agents (`demo/agents/`):**
@@ -97,7 +97,7 @@ And the five scenarios:
 | 35 | `sql/35_embed_finalise.sql` | `VECTOR INDEX` and `SEARCH INDEX` creation |
 | 40 | `sql/40_block.sql` | Deterministic blocking + Bipartite Identifier Graph (`has_identifier`, `has_identifier_history`, `identifier` IDF rarity, `profile_projection`) |
 | 50 | `sql/50_candidates.sql` | Semantic retrieval, RRF, 1-hop/2-hop graph features (`unshared_*_both`), three-way tiering |
-| 60 | `sql/60_adjudicate.sql` | Gemini 2.5 Flash on the grey zone only; append-only verdict ledger |
+| 60 | `sql/60_adjudicate.sql` | Gemini 3.5 Flash on the grey zone only; append-only verdict ledger |
 | 70 | `sql/70_graph.sql` | 3-method graph clustering (`baseline_cc`, `weighted_cc`, `composable_cdp`), Pass-2 Contradiction Guard, stable IDs, `cdp_identity_graph` & `cdp_semantic_graph` |
 | 80 | `sql/80_survivorship.sql` | Field-level survivorship (`golden_person`, `field_survivorship`) with full provenance |
 | 85 | `sql/85_consent.sql` | Intersection rule, suppressions, audience impact |
@@ -113,12 +113,12 @@ makes such a bug visible in review rather than silently flattering the score.
 
 ## Two native BigQuery Property Graphs (`70_graph.sql`)
 
-1. **`cdp.cdp_identity_graph` (8 node tables, 9 edge tables):** Connects both the pre-resolution Bipartite Identifier Graph (`SourceRecord` $\xrightarrow{\text{HAS\_IDENTIFIER}}$ `IdentifierNode`) and the post-resolution Customer 360 Entity Graph (`SourceRecord` $\xrightarrow{\text{RESOLVES\_TO}}$ `Person` $\xrightarrow{\text{MEMBER\_OF}}$ `Household`), annotated with `OPTIONS(description, synonyms)` for ISO GQL (`GRAPH_TABLE`) and `%%bigquery --graph` visualisations.
+1. **`cdp.cdp_identity_graph` (9 node tables, 13 edge tables):** Connects both the pre-resolution Bipartite Identifier Graph (`SourceRecord` $\xrightarrow{\text{HAS\_IDENTIFIER}}$ `Identifier`) and the post-resolution Customer 360 Entity Graph (`SourceRecord` $\xrightarrow{\text{RESOLVES\_TO}}$ `Person` $\xrightarrow{\text{MEMBER\_OF}}$ `Household`), annotated with `OPTIONS(description, synonyms)` for ISO GQL (`GRAPH_TABLE`) and `%%bigquery --graph` visualisations.
 2. **`cdp.cdp_semantic_graph` (Declarative `MEASURE()` Graph):** Defines node-scoped measures (`profile_count`, `link_count`, `identifier_count`, `baseline_wesid_count`, `weighted_wesid_count`, `composable_wesid_count`, `profiles_in_baseline_hairballs`, etc.) for fan-out-free multi-hop rollups via `FROM GRAPH_EXPAND("cdp.cdp_semantic_graph")` + `AGG()`.
 
 ```mermaid
 flowchart LR
-  IN["IdentifierNode<br/>(degree, idf_weight, is_promiscuous)"] <--|HAS_IDENTIFIER| SR["SourceRecord"]
+  IN["Identifier<br/>(degree, idf_weight, is_promiscuous)"] <--|HAS_IDENTIFIER| SR["SourceRecord"]
   SR -->|RESOLVES_TO| P["Person"]
   P -->|LIVES_AT| A["Address"]
   P -->|MEMBER_OF| H["Household"]
